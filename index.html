@@ -92,6 +92,17 @@ body{background:#111318;color:#e8eaf0;font-family:system-ui,-apple-system,sans-s
 #camerr{color:#fca5a5;font-size:13px;text-align:center;max-width:340px;line-height:1.5;display:none}
 #camerr.on{display:block}
 
+#savemenu{display:none;position:fixed;z-index:80;background:#1c1f27;border:1px solid #3a3f4d;border-radius:10px;padding:6px;box-shadow:0 12px 44px rgba(0,0,0,.6);min-width:248px;flex-direction:column;gap:2px}
+#savemenu.on{display:flex}
+.smi{display:flex;align-items:center;gap:11px;width:100%;text-align:left;background:transparent;border:none;border-radius:7px;padding:9px 10px;cursor:pointer;color:#e8eaf0;font-family:inherit}
+.smi:hover{background:#2a2d38}
+.smi:active{background:#374151}
+.smi-ic{font-size:17px;width:22px;text-align:center;flex-shrink:0}
+.smi-tx{display:flex;flex-direction:column;gap:1px;min-width:0}
+.smi-tx b{font-size:13px;font-weight:700}
+.smi-tx span{font-size:11px;color:#94a3b8;font-weight:500}
+.smi-note{font-size:10.5px;color:#64748b;text-align:center;padding:7px 4px 3px;border-top:1px solid #2a2d38;margin-top:3px}
+
 @media (max-width:760px){
   #tb{position:relative;z-index:70;gap:4px;min-height:50px}
   #cw{padding:8px;min-height:0}
@@ -143,9 +154,7 @@ body{background:#111318;color:#e8eaf0;font-family:system-ui,-apple-system,sans-s
   <button class="b dng mob-hide" id="cb" style="display:none">✕ Clear</button>
   <div class="flex1"></div>
   <button class="b" id="ptoggle" title="Edit properties of the selected item">⚙<span class="lbl"> Edit</span></button>
-  <button class="b ok" id="eb" style="display:none" title="Save a flat snapshot to share/view (not re-editable)">⬇<span class="lbl tbkeep"> Save PNG</span></button>
-  <button class="b ok" id="epdf" style="display:none;background:#7f1d1d;color:#fecaca;border-color:rgba(239,68,68,.5)" title="Save a print-ready PDF page to share, print, or drop into a packet — reopens here to keep editing">📄<span class="lbl tbkeep"> Save PDF</span></button>
-  <button class="b ok" id="esvg" style="display:none;background:#1e3a8a;color:#bfdbfe;border-color:rgba(59,130,246,.5)" title="Save an editable vector master (.svg) — opens in Illustrator with every line & label as a real object, and reopens here to keep editing">✦<span class="lbl tbkeep"> Save SVG</span></button>
+  <button class="b ok" id="savebtn" style="display:none" title="Save / export this survey">⬇<span class="lbl tbkeep"> Save</span> ▾</button>
 </div>
 
 <div id="bd">
@@ -228,6 +237,13 @@ body{background:#111318;color:#e8eaf0;font-family:system-ui,-apple-system,sans-s
 </div>
 
 <div id="scrim"></div>
+
+<div id="savemenu">
+  <button class="smi" data-fmt="pdf"><span class="smi-ic">📄</span><span class="smi-tx"><b>PDF</b><span>Print-ready page — share, print, drop in a packet</span></span></button>
+  <button class="smi" data-fmt="png"><span class="smi-ic">🖼</span><span class="smi-tx"><b>PNG</b><span>Flat image — quick to view or text</span></span></button>
+  <button class="smi" data-fmt="svg"><span class="smi-ic">✦</span><span class="smi-tx"><b>SVG</b><span>Editable vector — opens in Illustrator</span></span></button>
+  <div class="smi-note">All three reopen here, fully editable</div>
+</div>
 
 <div id="sb">
   <div class="sd" id="sdot"></div>
@@ -438,7 +454,7 @@ function dl(){if(S.sel==null)return;commit(S.lines.filter(l=>l.id!==S.sel));S.se
 function ca(){if(!S.lines.length)return;if(!confirm('Clear all '+S.lines.length+' annotation'+(S.lines.length>1?'s':'')+'? This can be undone with Ctrl+Z.'))return;commit([]);S.sel=null;up();ss();}
 function un(){if(!S.hist.length)return;S.lines=S.hist[S.hist.length-1];S.hist=S.hist.slice(0,-1);S.sel=null;render();up();uu();uc();ss();}
 
-function loadImageSrc(src){const im=new Image();im.onload=()=>{S.img={src,w:im.naturalWidth,h:im.naturalHeight};S.lines=[];S.hist=[];S.sel=null;S.drag=null;S.vb={x:0,y:0,w:S.img.w,h:S.img.h};const s=$('cv');s.setAttribute('viewBox',`0 0 ${S.img.w} ${S.img.h}`);const b=$('bg');b.setAttribute('href',src);b.setAttribute('width',S.img.w);b.setAttribute('height',S.img.h);$('dz').style.display='none';s.style.display='block';$('zoomctl').classList.add('on');render();up();uu();uc();$('eb').style.display='flex';$('esvg').style.display='flex';$('epdf').style.display='flex';st('line');};im.onerror=()=>{alert('Sorry, that image could not be loaded. Please try a different photo or format (JPG/PNG).');};im.src=src;}
+function loadImageSrc(src){const im=new Image();im.onload=()=>{S.img={src,w:im.naturalWidth,h:im.naturalHeight};S.lines=[];S.hist=[];S.sel=null;S.drag=null;S.vb={x:0,y:0,w:S.img.w,h:S.img.h};const s=$('cv');s.setAttribute('viewBox',`0 0 ${S.img.w} ${S.img.h}`);const b=$('bg');b.setAttribute('href',src);b.setAttribute('width',S.img.w);b.setAttribute('height',S.img.h);$('dz').style.display='none';s.style.display='block';$('zoomctl').classList.add('on');render();up();uu();uc();$('savebtn').style.display='flex';st('line');};im.onerror=()=>{alert('Sorry, that image could not be loaded. Please try a different photo or format (JPG/PNG).');};im.src=src;}
 // ── Editable project data: encode/decode helpers (shared by PNG + SVG) ──
 function utf8ToB64(str){const bytes=new TextEncoder().encode(str);let bin='';const ch=0x8000;for(let i=0;i<bytes.length;i+=ch)bin+=String.fromCharCode.apply(null,bytes.subarray(i,i+ch));return btoa(bin);}
 function b64ToUtf8(b64){const bin=atob(b64);const bytes=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);return new TextDecoder().decode(bytes);}
@@ -470,7 +486,7 @@ function restoreProject(d){
     const s=$('cv');s.setAttribute('viewBox',`0 0 ${S.img.w} ${S.img.h}`);
     const b=$('bg');b.setAttribute('href',src);b.setAttribute('width',S.img.w);b.setAttribute('height',S.img.h);
     $('dz').style.display='none';s.style.display='block';$('zoomctl').classList.add('on');
-    $('eb').style.display='flex';$('esvg').style.display='flex';$('epdf').style.display='flex';
+    $('savebtn').style.display='flex';
     sth(S.thick);st('select');render();up();uu();uc();
     const n=S.lines.length;$('st').textContent=`Reopened — ${n} annotation${n!==1?'s':''} restored and fully editable`;
   };
@@ -740,9 +756,17 @@ document.querySelectorAll('.capb').forEach(b=>b.addEventListener('click',()=>sca
 document.querySelectorAll('.capszb').forEach(b=>b.addEventListener('click',()=>scapsz(b.dataset.cs)));
 $('ub').addEventListener('click',un);
 $('cb').addEventListener('click',ca);
-$('eb').addEventListener('click',ex);
-$('epdf').addEventListener('click',exPDF);
-$('esvg').addEventListener('click',exSVG);
+// ── Save dropdown menu ──
+function openSaveMenu(){const m=$('savemenu'),r=$('savebtn').getBoundingClientRect();m.classList.add('on');const mw=m.offsetWidth;let left=r.right-mw;if(left<8)left=8;m.style.left=left+'px';m.style.top=(r.bottom+6)+'px';}
+function closeSaveMenu(){$('savemenu').classList.remove('on');}
+function saveMenuOpen(){return $('savemenu').classList.contains('on');}
+$('savebtn').addEventListener('click',e=>{e.stopPropagation();saveMenuOpen()?closeSaveMenu():openSaveMenu();});
+document.querySelectorAll('.smi').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();const f=b.dataset.fmt;closeSaveMenu();if(f==='pdf')exPDF();else if(f==='png')ex();else exSVG();}));
+document.addEventListener('click',()=>{if(saveMenuOpen())closeSaveMenu();});
+$('savemenu').addEventListener('click',e=>e.stopPropagation());
+$('tb').addEventListener('scroll',()=>{if(saveMenuOpen())closeSaveMenu();});
+window.addEventListener('resize',()=>{if(saveMenuOpen())closeSaveMenu();});
+window.addEventListener('keydown',e=>{if(e.key==='Escape'&&saveMenuOpen())closeSaveMenu();},true);
 $('db').addEventListener('click',dl);
 $('pnclose').addEventListener('click',closeDrawer);
 $('donebtn').addEventListener('click',()=>{applyLabel();$('li').blur();closeDrawer();});
@@ -777,7 +801,7 @@ cv.addEventListener('pointerdown',e=>{
     if(t==='svg'||t==='image'){
       e.preventDefault();const p=gp(e),id=uid++;
       commit([...S.lines,{id,type:'text',lx:p.x,ly:p.y,color:S.color,bubble:S.bubble,label:'',scale:1}]);
-      S.sel=id;up();st('select');openDrawer();$('eb').style.display='flex';
+      S.sel=id;up();st('select');openDrawer();$('savebtn').style.display='flex';
       if(!('ontouchstart' in window)&&!navigator.maxTouchPoints){setTimeout(()=>$('li').focus(),60);}
     }
   }
@@ -827,7 +851,7 @@ cv.addEventListener('pointerup',e=>{
     if(Math.hypot(p.x-S.drawing.x,p.y-S.drawing.y)>8){
       const id=uid++,{FS}=sc();
       commit([...S.lines,{id,x1:S.drawing.x,y1:S.drawing.y,x2:p.x,y2:p.y,color:S.color,label:'',lx:(S.drawing.x+p.x)/2,ly:(S.drawing.y+p.y)/2-FS*1.6,scale:1,cap:S.cap,capSize:S.capSize}]);
-      S.sel=id;up();st('select');openDrawer();$('eb').style.display='flex';
+      S.sel=id;up();st('select');openDrawer();$('savebtn').style.display='flex';
     }
     S.drawing=null;render();
   }
