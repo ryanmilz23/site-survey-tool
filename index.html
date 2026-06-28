@@ -139,6 +139,7 @@ body{background:#111318;color:#e8eaf0;font-family:system-ui,-apple-system,sans-s
   <div class="flex1"></div>
   <button class="b" id="ptoggle" title="Edit properties of the selected item">⚙<span class="lbl"> Edit</span></button>
   <button class="b ok" id="eb" style="display:none" title="Save a flat snapshot to share/view (not re-editable)">⬇<span class="lbl tbkeep"> Save PNG</span></button>
+  <button class="b ok" id="epdf" style="display:none;background:#7f1d1d;color:#fecaca;border-color:rgba(239,68,68,.5)" title="Save a print-ready PDF page to share, print, or drop into a packet — reopens here to keep editing">📄<span class="lbl tbkeep"> Save PDF</span></button>
   <button class="b ok" id="esvg" style="display:none;background:#1e3a8a;color:#bfdbfe;border-color:rgba(59,130,246,.5)" title="Save an editable vector master (.svg) — opens in Illustrator with every line & label as a real object, and reopens here to keep editing">✦<span class="lbl tbkeep"> Save SVG</span></button>
 </div>
 
@@ -147,7 +148,7 @@ body{background:#111318;color:#e8eaf0;font-family:system-ui,-apple-system,sans-s
     <div id="dz">
       <div class="dzi">🏗</div>
       <div class="dzt">Load a site survey photo</div>
-      <div class="dzs">JPG · PNG · WEBP — or reopen a saved .svg / .png to keep editing</div>
+      <div class="dzs">JPG · PNG · WEBP — or reopen a saved .png / .pdf / .svg to keep editing</div>
       <div style="display:flex;gap:10px;margin-top:4px;flex-wrap:wrap;justify-content:center">
         <button class="dzb" id="dzload">Browse files</button>
         <button class="dzb" id="dzcam" style="background:#374151">📷 Use camera</button>
@@ -229,7 +230,7 @@ body{background:#111318;color:#e8eaf0;font-family:system-ui,-apple-system,sans-s
   <span id="sc" style="margin-left:auto">0 lines</span>
 </div>
 
-<input type="file" id="ufile" accept="image/*,.svg" class="hiddenfile">
+<input type="file" id="ufile" accept="image/*,.svg,.pdf" class="hiddenfile">
 <input type="file" id="ucap" accept="image/*" capture="environment" class="hiddenfile">
 
 <div id="camov">
@@ -432,7 +433,7 @@ function dl(){if(S.sel==null)return;commit(S.lines.filter(l=>l.id!==S.sel));S.se
 function ca(){if(!S.lines.length)return;if(!confirm('Clear all '+S.lines.length+' annotation'+(S.lines.length>1?'s':'')+'? This can be undone with Ctrl+Z.'))return;commit([]);S.sel=null;up();ss();}
 function un(){if(!S.hist.length)return;S.lines=S.hist[S.hist.length-1];S.hist=S.hist.slice(0,-1);S.sel=null;render();up();uu();uc();ss();}
 
-function loadImageSrc(src){const im=new Image();im.onload=()=>{S.img={src,w:im.naturalWidth,h:im.naturalHeight};S.lines=[];S.hist=[];S.sel=null;S.drag=null;S.vb={x:0,y:0,w:S.img.w,h:S.img.h};const s=$('cv');s.setAttribute('viewBox',`0 0 ${S.img.w} ${S.img.h}`);const b=$('bg');b.setAttribute('href',src);b.setAttribute('width',S.img.w);b.setAttribute('height',S.img.h);$('dz').style.display='none';s.style.display='block';$('zoomctl').classList.add('on');render();up();uu();uc();$('eb').style.display='flex';$('esvg').style.display='flex';st('line');};im.onerror=()=>{alert('Sorry, that image could not be loaded. Please try a different photo or format (JPG/PNG).');};im.src=src;}
+function loadImageSrc(src){const im=new Image();im.onload=()=>{S.img={src,w:im.naturalWidth,h:im.naturalHeight};S.lines=[];S.hist=[];S.sel=null;S.drag=null;S.vb={x:0,y:0,w:S.img.w,h:S.img.h};const s=$('cv');s.setAttribute('viewBox',`0 0 ${S.img.w} ${S.img.h}`);const b=$('bg');b.setAttribute('href',src);b.setAttribute('width',S.img.w);b.setAttribute('height',S.img.h);$('dz').style.display='none';s.style.display='block';$('zoomctl').classList.add('on');render();up();uu();uc();$('eb').style.display='flex';$('esvg').style.display='flex';$('epdf').style.display='flex';st('line');};im.onerror=()=>{alert('Sorry, that image could not be loaded. Please try a different photo or format (JPG/PNG).');};im.src=src;}
 // ── Editable project data: encode/decode helpers (shared by PNG + SVG) ──
 function utf8ToB64(str){const bytes=new TextEncoder().encode(str);let bin='';const ch=0x8000;for(let i=0;i<bytes.length;i+=ch)bin+=String.fromCharCode.apply(null,bytes.subarray(i,i+ch));return btoa(bin);}
 function b64ToUtf8(b64){const bin=atob(b64);const bytes=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);return new TextDecoder().decode(bytes);}
@@ -444,6 +445,7 @@ function makeTextChunk(keyword,textB64){const body=keyword+'\0'+textB64;const bb
 function embedInPNG(arr,textB64){const dv=new DataView(arr.buffer,arr.byteOffset,arr.byteLength);let p=8,iend=-1;while(p+8<=arr.length){const len=dv.getUint32(p);const ty=String.fromCharCode(arr[p+4],arr[p+5],arr[p+6],arr[p+7]);if(ty==='IEND'){iend=p;break;}p=p+12+len;}if(iend<0)return arr;const chunk=makeTextChunk('ssa',textB64);const out=new Uint8Array(arr.length+chunk.length);out.set(arr.slice(0,iend),0);out.set(chunk,iend);out.set(arr.slice(iend),iend+chunk.length);return out;}
 function extractPNGData(arr){if(arr.length<8)return null;const dv=new DataView(arr.buffer,arr.byteOffset,arr.byteLength);let p=8;while(p+8<=arr.length){const len=dv.getUint32(p);const ty=String.fromCharCode(arr[p+4],arr[p+5],arr[p+6],arr[p+7]);if(ty==='tEXt'){const ds=p+8,de=ds+len;let k='',i=ds;for(;i<de&&arr[i]!==0;i++)k+=String.fromCharCode(arr[i]);if(k==='ssa'){let t='';for(let j=i+1;j<de;j++)t+=String.fromCharCode(arr[j]);try{return JSON.parse(b64ToUtf8(t));}catch(e){return null;}}}if(ty==='IEND')break;p=p+12+len;}return null;}
 function extractSVGData(text){try{const m=text.match(/<metadata id="site-survey-annotator">([A-Za-z0-9+/=\s]*)<\/metadata>/);if(!m)return null;return JSON.parse(b64ToUtf8(m[1].replace(/\s/g,'')));}catch(e){return null;}}
+function extractPDFData(arr){try{let s='';for(let i=0;i<arr.length;i++)s+=String.fromCharCode(arr[i]);const m=s.match(/SSA1:([A-Za-z0-9+/=]+)/);if(!m)return null;return JSON.parse(b64ToUtf8(m[1]));}catch(e){return null;}}
 // Rebuild a full editable session from saved data (image + annotations)
 function restoreProject(d){
   if(!d||!d.img){alert('That file doesn\'t contain editable survey data — loading it as a new photo instead.');return false;}
@@ -458,7 +460,7 @@ function restoreProject(d){
     const s=$('cv');s.setAttribute('viewBox',`0 0 ${S.img.w} ${S.img.h}`);
     const b=$('bg');b.setAttribute('href',src);b.setAttribute('width',S.img.w);b.setAttribute('height',S.img.h);
     $('dz').style.display='none';s.style.display='block';$('zoomctl').classList.add('on');
-    $('eb').style.display='flex';$('esvg').style.display='flex';
+    $('eb').style.display='flex';$('esvg').style.display='flex';$('epdf').style.display='flex';
     sth(S.thick);st('select');render();up();uu();uc();
     const n=S.lines.length;$('st').textContent=`Reopened — ${n} annotation${n!==1?'s':''} restored and fully editable`;
   };
@@ -471,7 +473,13 @@ function hu(e){
   const name=(f.name||'').toLowerCase();
   const isSVG=f.type==='image/svg+xml'||name.endsWith('.svg');
   const isPNG=f.type==='image/png'||name.endsWith('.png');
-  if(isSVG){
+  const isPDF=f.type==='application/pdf'||name.endsWith('.pdf');
+  if(isPDF){
+    const r=new FileReader();
+    r.onload=()=>{const d=extractPDFData(new Uint8Array(r.result));if(d){restoreProject(d);}else{alert('That PDF doesn\'t contain editable survey data — it may not have been made by this tool.');}};
+    r.onerror=()=>alert('Could not read that file. Please try again.');
+    r.readAsArrayBuffer(f);
+  }else if(isSVG){
     const r=new FileReader();
     r.onload=()=>{const d=extractSVGData(r.result);if(d){restoreProject(d);}else{const r2=new FileReader();r2.onload=()=>loadImageSrc(r2.result);r2.onerror=()=>alert('Could not read that SVG.');r2.readAsDataURL(f);}};
     r.onerror=()=>alert('Could not read that file. Please try again.');
@@ -560,8 +568,9 @@ function drawCapCanvas(ctx,fx,fy,tx,ty,sw,color,style,size){
   }
   ctx.restore();
 }
-function ex(){
-  if(!S.img)return;const W=S.img.w,H=S.img.h,{S:sw,MR,FS}=sc();
+// Composite the photo + all annotations onto a full-resolution canvas, then hand it back.
+function compositeCanvas(done){
+  if(!S.img)return;const W=S.img.w,H=S.img.h,{S:sw,FS}=sc();
   const can=document.createElement('canvas');can.width=W;can.height=H;const ctx=can.getContext('2d'),im=new Image();
   im.onload=()=>{
     ctx.drawImage(im,0,0,W,H);
@@ -594,6 +603,15 @@ function ex(){
       }
       ctx.restore();
     });
+    done(can);
+  };
+  im.onerror=()=>alert('Could not render the image for export.');
+  im.src=S.img.src;
+}
+// PNG — flat snapshot, but carries the editable source so it reopens here.
+function ex(){
+  if(!S.img)return;
+  compositeCanvas(can=>{
     const finish=()=>{const a=document.createElement('a');a.download='site-survey.png';a.href=can.toDataURL('image/png');a.click();};
     if(can.toBlob){
       can.toBlob(blob=>{
@@ -606,7 +624,46 @@ function ex(){
         }).catch(finish);
       },'image/png');
     }else{finish();}
-  };im.src=S.img.src;
+  });
+}
+// ── PDF export: a flat, print-ready single page that ALSO carries the editable source ──
+function strBytes(s){const b=new Uint8Array(s.length);for(let i=0;i<s.length;i++)b[i]=s.charCodeAt(i)&0xff;return b;}
+function buildPDF(jpegBytes,iw,ih,payloadB64){
+  const maxSide=1000,scale=maxSide/Math.max(iw,ih);
+  const pw=+(iw*scale).toFixed(2),ph=+(ih*scale).toFixed(2);
+  const parts=[];let offset=0;const xref=[];
+  const add=b=>{if(typeof b==='string')b=strBytes(b);parts.push(b);offset+=b.length;};
+  const obj=(n,header)=>{xref[n]=offset;add(header);};
+  add('%PDF-1.4\n%\xFF\xFF\xFF\xFF\n');
+  obj(1,'1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n');
+  obj(2,'2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n');
+  obj(3,`3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pw} ${ph}] /Resources << /XObject << /Im0 4 0 R >> >> /Contents 5 0 R >>\nendobj\n`);
+  obj(4,`4 0 obj\n<< /Type /XObject /Subtype /Image /Width ${iw} /Height ${ih} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpegBytes.length} >>\nstream\n`);
+  add(jpegBytes);add('\nendstream\nendobj\n');
+  const content=`q\n${pw} 0 0 ${ph} 0 0 cm\n/Im0 Do\nQ\n`;
+  obj(5,`5 0 obj\n<< /Length ${content.length} >>\nstream\n${content}endstream\nendobj\n`);
+  obj(6,`6 0 obj\n<< /Title (Site Survey) /Creator (Site Survey Annotation Tool) /SSAData (SSA1:${payloadB64}) >>\nendobj\n`);
+  const xrefStart=offset;
+  let x='xref\n0 7\n0000000000 65535 f \n';
+  for(let i=1;i<=6;i++)x+=String(xref[i]).padStart(10,'0')+' 00000 n \n';
+  add(x);
+  add(`trailer\n<< /Size 7 /Root 1 0 R /Info 6 0 R >>\nstartxref\n${xrefStart}\n%%EOF`);
+  let total=0;parts.forEach(p=>total+=p.length);
+  const out=new Uint8Array(total);let o=0;parts.forEach(p=>{out.set(p,o);o+=p.length;});
+  return out;
+}
+function exPDF(){
+  if(!S.img)return;
+  compositeCanvas(can=>{
+    try{
+      const durl=can.toDataURL('image/jpeg',0.92);
+      const jpeg=strBytes(atob(durl.split(',')[1]));
+      const payload=utf8ToB64(JSON.stringify(projectData()));
+      const pdf=buildPDF(jpeg,can.width,can.height,payload);
+      dlBlob(new Blob([pdf],{type:'application/pdf'}),'site-survey.pdf');
+      $('st').textContent='Saved PDF — ready to share, print, or drop into a packet (reopens here too)';
+    }catch(err){alert('Could not build the PDF export.');}
+  });
 }
 
 function uu(){const b=$('ub');b.disabled=!S.hist.length;b.style.opacity=S.hist.length?'1':'.3';}
@@ -674,6 +731,7 @@ document.querySelectorAll('.capszb').forEach(b=>b.addEventListener('click',()=>s
 $('ub').addEventListener('click',un);
 $('cb').addEventListener('click',ca);
 $('eb').addEventListener('click',ex);
+$('epdf').addEventListener('click',exPDF);
 $('esvg').addEventListener('click',exSVG);
 $('db').addEventListener('click',dl);
 $('pnclose').addEventListener('click',closeDrawer);
