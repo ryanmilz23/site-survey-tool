@@ -2,15 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>Site Survey</title>
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Site Survey">
-<meta name="theme-color" content="#111318">
-<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='40' fill='%23111318'/%3E%3Crect x='30' y='30' width='120' height='120' rx='26' fill='url(%23g)'/%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23FFD60A'/%3E%3Cstop offset='1' stop-color='%23FF9F0A'/%3E%3C/linearGradient%3E%3C/defs%3E%3Ctext x='90' y='122' font-size='80' text-anchor='middle' fill='%23111318'%3E%F0%9F%93%90%3C/text%3E%3C/svg%3E">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='url(%23g)'/%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23FFD60A'/%3E%3Cstop offset='1' stop-color='%23FF9F0A'/%3E%3C/linearGradient%3E%3C/defs%3E%3Ctext x='16' y='23' font-size='18' text-anchor='middle'%3E%F0%9F%93%90%3C/text%3E%3C/svg%3E">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Site Survey Annotation Tool</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%}
@@ -74,7 +67,9 @@ body{background:#111318;color:#e8eaf0;font-family:system-ui,-apple-system,sans-s
 .pwb.on{background:#374151;color:#f9fafb;border-color:#6b7280}
 .pwb:hover{background:#2a2d38;color:#e2e8f0}
 #ps{background:#111318;border-radius:7px;padding:9px 11px;font-size:12px;color:#6b7280;display:flex;flex-direction:column;gap:3px;font-family:"Courier New",monospace}
-#db{width:100%;background:transparent;color:#ef4444;border:1px solid rgba(239,68,68,.35);padding:9px;border-radius:7px;cursor:pointer;font-size:13px;font-weight:600;font-family:inherit;margin-top:auto}
+#db{width:100%;background:transparent;color:#ef4444;border:1px solid rgba(239,68,68,.35);padding:9px;border-radius:7px;cursor:pointer;font-size:13px;font-weight:600;font-family:inherit}
+#donebtn{width:100%;background:#14532d;color:#86efac;border:1px solid rgba(34,197,94,.4);padding:11px;border-radius:7px;cursor:pointer;font-size:15px;font-weight:700;font-family:inherit;margin-top:auto}
+#donebtn:hover{background:#166534}
 #db:hover{background:rgba(239,68,68,.12)}
 
 #sb{min-height:30px;display:flex;align-items:center;padding:0 12px;gap:8px;flex-shrink:0;background:#1c1f27;border-top:1px solid #2a2d38;font-size:11px;color:#64748b}
@@ -214,6 +209,7 @@ body{background:#111318;color:#e8eaf0;font-family:system-ui,-apple-system,sans-s
       </div>
     </div>
     <div id="ps" class="lineonly"><div>Length: <span id="sl">—</span></div><div>Angle: <span id="sa">—</span></div></div>
+    <button id="donebtn">✓ Done</button>
     <button id="db">✕ Delete line</button>
   </div>
 </div>
@@ -561,13 +557,14 @@ $('cb').addEventListener('click',ca);
 $('eb').addEventListener('click',ex);
 $('db').addEventListener('click',dl);
 $('pnclose').addEventListener('click',closeDrawer);
+$('donebtn').addEventListener('click',()=>{applyLabel();$('li').blur();closeDrawer();});
 $('zin').addEventListener('click',()=>{const v=S.vb;zoomAt(1.4,v.x+v.w/2,v.y+v.h/2);render();});
 $('zout').addEventListener('click',()=>{const v=S.vb;zoomAt(1/1.4,v.x+v.w/2,v.y+v.h/2);render();});
 $('zfit').addEventListener('click',()=>{fitVB();render();});
 $('scrim').addEventListener('click',()=>{if(Date.now()-(S.drawerAt||0)<450)return;closeDrawer();});$('ptoggle').addEventListener('click',()=>{if($('pn').classList.contains('show')){closeDrawer();}else if(S.sel!=null){openDrawer();}else{$('st').textContent='Select or draw an item first, then tap Edit to adjust it';}});
 function applyLabel(){if(S.sel==null)return;const v=$('li').value;S.lines=S.lines.map(l=>l.id===S.sel?{...l,label:v}:l);$('ph').textContent=v?'↔ Drag the label on the image to reposition':'Type a measurement or note';render();}
 ['input','change','compositionupdate','compositionend','keyup'].forEach(ev=>$('li').addEventListener(ev,applyLabel));
-$('li').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();applyLabel();$('li').blur();}});
+$('li').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();applyLabel();$('li').blur();if(isMobile())closeDrawer();}});
 $('ls').addEventListener('input',e=>{if(S.sel==null)return;const v=parseFloat(e.target.value);$('lsv').textContent=v.toFixed(1)+'×';S.lines=S.lines.map(l=>l.id===S.sel?{...l,scale:v}:l);render();});
 
 const cv=$('cv');
