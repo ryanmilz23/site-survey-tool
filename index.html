@@ -13,6 +13,9 @@ body{background:#111318;color:#e8eaf0;font-family:system-ui,-apple-system,sans-s
 .brand{display:flex;align-items:center;gap:7px;margin-right:4px;flex-shrink:0}
 .bi{width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,#FFD60A,#FF9F0A);display:flex;align-items:center;justify-content:center;font-size:15px}
 .bn{font-size:13px;font-weight:700;color:#e8eaf0;white-space:nowrap}
+.ti{min-width:96px;max-width:210px;flex:0 1 auto;background:#111318;border:1px solid #2a2d38;color:#e8eaf0;border-radius:7px;padding:7px 10px;font-size:13px;font-weight:600;font-family:inherit;outline:none}
+.ti:focus{border-color:#60a5fa}
+.ti::placeholder{color:#4b5563;font-weight:500}
 .sep{width:1px;height:22px;background:#2a2d38;margin:0 3px;flex-shrink:0}
 .flex1{flex:1;min-width:6px}
 
@@ -102,6 +105,7 @@ body{background:#111318;color:#e8eaf0;font-family:system-ui,-apple-system,sans-s
   #ptoggle{display:flex}
   .pcd{width:32px;height:32px}
   #li{padding:11px;font-size:16px}
+  .ti{font-size:16px;min-width:64px;max-width:150px;padding:8px}
   #ls{height:26px}
   .b{padding:8px 10px;font-size:13px}
   .mob-hide{display:none!important}
@@ -119,8 +123,9 @@ body{background:#111318;color:#e8eaf0;font-family:system-ui,-apple-system,sans-s
 <body>
 
 <div id="tb">
-  <div class="brand mob-hide"><div class="bi">📐</div><div class="bn">Site Survey</div></div>
-  <div class="sep mob-hide"></div>
+  <div class="brand mob-hide"><div class="bi">📐</div></div>
+  <input id="ti" class="ti" type="text" placeholder="Untitled survey" title="Name this survey — saved with the file and used as the download name" autocomplete="off" spellcheck="false">
+  <div class="sep"></div>
   <button class="up" id="loadbtn" title="Load a photo from your library or files">🖼<span class="lbl"> Load photo</span></button>
   <button class="b" id="cam" title="Take a photo with the camera" style="border-color:#3a3f4d">📷<span class="lbl"> Camera</span></button>
   <div class="sep"></div>
@@ -248,7 +253,7 @@ body{background:#111318;color:#e8eaf0;font-family:system-ui,-apple-system,sans-s
 <script>
 const PAL=[{h:'#FFD60A',n:'Yellow'},{h:'#FF3B30',n:'Red'},{h:'#FF9F0A',n:'Orange'},{h:'#34C759',n:'Green'},{h:'#5AC8FA',n:'Cyan'},{h:'#0A84FF',n:'Blue'},{h:'#BF5AF2',n:'Purple'},{h:'#FF2D55',n:'Pink'},{h:'#FFFFFF',n:'White'},{h:'#1C1C1E',n:'Black'}];
 const NS='http://www.w3.org/2000/svg';
-let S={img:null,lines:[],hist:[],tool:'select',drawing:null,pos:null,sel:null,color:'#FFD60A',thick:3,drag:null,cap:'triangle',capSize:'md',bubble:'rgba(0,0,0,.88)'};
+let S={img:null,title:'',lines:[],hist:[],tool:'select',drawing:null,pos:null,sel:null,color:'#FFD60A',thick:3,drag:null,cap:'triangle',capSize:'md',bubble:'rgba(0,0,0,.88)'};
 let uid=1;
 const $=id=>document.getElementById(id);
 function se(t,a={}){const e=document.createElementNS(NS,t);for(const[k,v]of Object.entries(a))e.setAttribute(k,v);return e;}
@@ -437,7 +442,11 @@ function loadImageSrc(src){const im=new Image();im.onload=()=>{S.img={src,w:im.n
 // ── Editable project data: encode/decode helpers (shared by PNG + SVG) ──
 function utf8ToB64(str){const bytes=new TextEncoder().encode(str);let bin='';const ch=0x8000;for(let i=0;i<bytes.length;i+=ch)bin+=String.fromCharCode.apply(null,bytes.subarray(i,i+ch));return btoa(bin);}
 function b64ToUtf8(b64){const bin=atob(b64);const bytes=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);return new TextDecoder().decode(bytes);}
-function projectData(){return {v:1,app:'site-survey',w:S.img.w,h:S.img.h,thick:S.thick,img:S.img.src,lines:S.lines};}
+function projectData(){return {v:1,app:'site-survey',title:S.title,w:S.img.w,h:S.img.h,thick:S.thick,img:S.img.src,lines:S.lines};}
+// Build a safe download filename from the survey title (falls back to a default)
+function fileName(ext){let t=(S.title||'').trim().replace(/[\\/:*?"<>|\x00-\x1f]+/g,' ').replace(/\s+/g,' ').replace(/^[. ]+|[. ]+$/g,'').slice(0,80).trim();return (t||'site-survey')+'.'+ext;}
+// Escape a string for use inside a PDF literal ( ) string
+function pdfStr(s){return String(s||'').replace(/\\/g,'\\\\').replace(/\(/g,'\\(').replace(/\)/g,'\\)');}
 // PNG tEXt chunk read/write (keyword "ssa") so a flat PNG can still carry its editable source
 const CRCT=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0;}return t;})();
 function crc32(bytes){let c=0xFFFFFFFF;for(let i=0;i<bytes.length;i++)c=CRCT[(c^bytes[i])&0xFF]^(c>>>8);return (c^0xFFFFFFFF)>>>0;}
@@ -453,6 +462,7 @@ function restoreProject(d){
   im.onload=()=>{
     S.img={src,w:d.w||im.naturalWidth,h:d.h||im.naturalHeight};
     S.lines=(d.lines||[]).map(l=>({...l}));
+    S.title=d.title||'';$('ti').value=S.title;
     S.hist=[];S.sel=null;S.drag=null;
     if(d.thick)S.thick=d.thick;
     S.vb={x:0,y:0,w:S.img.w,h:S.img.h};
@@ -539,7 +549,7 @@ function exSVG(){
   if(!S.img)return;
   try{
     const blob=new Blob([buildExportSVG()],{type:'image/svg+xml'});
-    dlBlob(blob,'site-survey.svg');
+    dlBlob(blob,fileName('svg'));
     $('st').textContent='Saved editable SVG — reopen it here, or open it in Illustrator';
   }catch(err){alert('Could not build the SVG export.');}
 }
@@ -612,14 +622,14 @@ function compositeCanvas(done){
 function ex(){
   if(!S.img)return;
   compositeCanvas(can=>{
-    const finish=()=>{const a=document.createElement('a');a.download='site-survey.png';a.href=can.toDataURL('image/png');a.click();};
+    const finish=()=>{const a=document.createElement('a');a.download=fileName('png');a.href=can.toDataURL('image/png');a.click();};
     if(can.toBlob){
       can.toBlob(blob=>{
         if(!blob){finish();return;}
         blob.arrayBuffer().then(buf=>{
           let bytes=new Uint8Array(buf);
           try{bytes=embedInPNG(bytes,utf8ToB64(JSON.stringify(projectData())));}catch(err){console.warn('PNG embed skipped',err);}
-          dlBlob(new Blob([bytes],{type:'image/png'}),'site-survey.png');
+          dlBlob(new Blob([bytes],{type:'image/png'}),fileName('png'));
           $('st').textContent='Saved PNG — reopen it here to keep editing, or share it as a flat image';
         }).catch(finish);
       },'image/png');
@@ -628,7 +638,7 @@ function ex(){
 }
 // ── PDF export: a flat, print-ready single page that ALSO carries the editable source ──
 function strBytes(s){const b=new Uint8Array(s.length);for(let i=0;i<s.length;i++)b[i]=s.charCodeAt(i)&0xff;return b;}
-function buildPDF(jpegBytes,iw,ih,payloadB64){
+function buildPDF(jpegBytes,iw,ih,payloadB64,title){
   const maxSide=1000,scale=maxSide/Math.max(iw,ih);
   const pw=+(iw*scale).toFixed(2),ph=+(ih*scale).toFixed(2);
   const parts=[];let offset=0;const xref=[];
@@ -642,7 +652,7 @@ function buildPDF(jpegBytes,iw,ih,payloadB64){
   add(jpegBytes);add('\nendstream\nendobj\n');
   const content=`q\n${pw} 0 0 ${ph} 0 0 cm\n/Im0 Do\nQ\n`;
   obj(5,`5 0 obj\n<< /Length ${content.length} >>\nstream\n${content}endstream\nendobj\n`);
-  obj(6,`6 0 obj\n<< /Title (Site Survey) /Creator (Site Survey Annotation Tool) /SSAData (SSA1:${payloadB64}) >>\nendobj\n`);
+  obj(6,`6 0 obj\n<< /Title (${pdfStr(title||'Site Survey')}) /Creator (Site Survey Annotation Tool) /SSAData (SSA1:${payloadB64}) >>\nendobj\n`);
   const xrefStart=offset;
   let x='xref\n0 7\n0000000000 65535 f \n';
   for(let i=1;i<=6;i++)x+=String(xref[i]).padStart(10,'0')+' 00000 n \n';
@@ -659,8 +669,8 @@ function exPDF(){
       const durl=can.toDataURL('image/jpeg',0.92);
       const jpeg=strBytes(atob(durl.split(',')[1]));
       const payload=utf8ToB64(JSON.stringify(projectData()));
-      const pdf=buildPDF(jpeg,can.width,can.height,payload);
-      dlBlob(new Blob([pdf],{type:'application/pdf'}),'site-survey.pdf');
+      const pdf=buildPDF(jpeg,can.width,can.height,payload,S.title);
+      dlBlob(new Blob([pdf],{type:'application/pdf'}),fileName('pdf'));
       $('st').textContent='Saved PDF — ready to share, print, or drop into a packet (reopens here too)';
     }catch(err){alert('Could not build the PDF export.');}
   });
@@ -743,6 +753,8 @@ $('scrim').addEventListener('click',()=>{if(Date.now()-(S.drawerAt||0)<450)retur
 function applyLabel(){if(S.sel==null)return;const v=$('li').value;S.lines=S.lines.map(l=>l.id===S.sel?{...l,label:v}:l);$('ph').textContent=v?'↔ Drag the label on the image to reposition':'Type a measurement or note';render();}
 ['input','change','compositionupdate','compositionend','keyup'].forEach(ev=>$('li').addEventListener(ev,applyLabel));
 $('li').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();applyLabel();$('li').blur();if(isMobile())closeDrawer();}});
+['input','change','compositionupdate','compositionend','keyup'].forEach(ev=>$('ti').addEventListener(ev,()=>{S.title=$('ti').value;}));
+$('ti').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();$('ti').blur();}});
 $('ls').addEventListener('input',e=>{if(S.sel==null)return;const v=parseFloat(e.target.value);$('lsv').textContent=v.toFixed(1)+'×';S.lines=S.lines.map(l=>l.id===S.sel?{...l,scale:v}:l);render();});
 
 const cv=$('cv');
