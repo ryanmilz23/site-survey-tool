@@ -104,7 +104,10 @@ body{background:#111318;color:#e8eaf0;font-family:system-ui,-apple-system,sans-s
   .b{padding:8px 10px;font-size:13px}
   .mob-hide{display:none!important}
   .lbl{display:none}
-  #tb{justify-content:flex-start;gap:5px;overflow-x:visible}
+  .toollbl{display:inline}
+  #bs,#bl,#bt{padding:7px 9px}
+  #ptoggle .lbl{display:inline}
+  #tb{justify-content:flex-start;gap:5px;overflow-x:auto}
   #loadbtn,#cam{padding:8px 11px}
   #ptoggle.has-sel{background:#1d4ed8;color:#bfdbfe;border-color:#3b82f6}
 }
@@ -118,9 +121,9 @@ body{background:#111318;color:#e8eaf0;font-family:system-ui,-apple-system,sans-s
   <button class="up" id="loadbtn" title="Load a photo from your library or files">🖼<span class="lbl"> Load photo</span></button>
   <button class="b" id="cam" title="Take a photo with the camera" style="border-color:#3a3f4d">📷<span class="lbl"> Camera</span></button>
   <div class="sep"></div>
-  <button class="b s-on tool" id="bs" data-t="select" title="Select & move labels (S)">↖<span class="lbl"> Select</span></button>
-  <button class="b tool" id="bl" data-t="line" title="Draw measurement line (L)">╱<span class="lbl"> Draw line</span></button>
-  <button class="b tool" id="bt" data-t="text" title="Add a text label (T)">🅣<span class="lbl"> Text</span></button>
+  <button class="b s-on tool" id="bs" data-t="select" title="Select & move labels (S)">↖<span class="lbl toollbl"> Select</span></button>
+  <button class="b tool" id="bl" data-t="line" title="Draw measurement line (L)">╱<span class="lbl toollbl"> Line</span></button>
+  <button class="b tool" id="bt" data-t="text" title="Add a text label (T)">🅣<span class="lbl toollbl"> Text</span></button>
   <div class="sep mob-hide"></div>
   <button class="b t-on thk mob-hide" data-v="3" title="Thin"><div style="width:14px;height:2px;background:currentColor;border-radius:2px"></div></button>
   <button class="b thk mob-hide" data-v="5" title="Medium"><div style="width:14px;height:3px;background:currentColor;border-radius:2px"></div></button>
