@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+\<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -19,6 +19,8 @@ body{background:#111318;color:#e8eaf0;font-family:system-ui,-apple-system,sans-s
 .b{display:flex;align-items:center;justify-content:center;gap:4px;padding:6px 10px;border-radius:7px;border:1px solid transparent;background:transparent;color:#94a3b8;font-size:12px;font-weight:500;cursor:pointer;white-space:nowrap;flex-shrink:0;font-family:inherit;transition:all .12s}
 .b:hover:not(:disabled){background:#2a2d38;color:#e2e8f0}
 .b:disabled{opacity:.3;cursor:not-allowed}
+#ub:not(:disabled){background:#2a2d38;color:#e2e8f0;border-color:#3a3f4d}
+#ub:not(:disabled):hover{background:#374151}
 .b.s-on{background:#1d4ed8;color:#bfdbfe;border-color:#3b82f6}
 .b.l-on{background:#b45309;color:#fde68a;border-color:#f59e0b}
 .b.t-tool-on{background:#5b21b6;color:#ddd6fe;border-color:#7c3aed}
@@ -105,6 +107,7 @@ body{background:#111318;color:#e8eaf0;font-family:system-ui,-apple-system,sans-s
   .mob-hide{display:none!important}
   .lbl{display:none}
   .toollbl{display:inline}
+  .tbkeep{display:inline}
   #bs,#bl,#bt{padding:7px 9px}
   #ptoggle .lbl{display:inline}
   #tb{justify-content:flex-start;gap:5px;overflow-x:auto}
@@ -131,11 +134,11 @@ body{background:#111318;color:#e8eaf0;font-family:system-ui,-apple-system,sans-s
   <div class="sep mob-hide"></div>
   <div id="tbc" class="mob-hide" style="display:flex;gap:4px;flex-shrink:0"></div>
   <div class="sep"></div>
-  <button class="b" id="ub" title="Undo (Ctrl+Z)" disabled>↩<span class="lbl"> Undo</span></button>
+  <button class="b" id="ub" title="Undo last change (Ctrl+Z)" disabled>⤺<span class="lbl tbkeep"> Undo</span></button>
   <button class="b dng mob-hide" id="cb" style="display:none">✕ Clear</button>
   <div class="flex1"></div>
   <button class="b" id="ptoggle" title="Edit properties of the selected item">⚙<span class="lbl"> Edit</span></button>
-  <button class="b ok" id="eb" style="display:none">↓<span class="lbl"> Export</span></button>
+  <button class="b ok" id="eb" style="display:none" title="Save the annotated photo to your device">⬇<span class="lbl tbkeep"> Save PNG</span></button>
 </div>
 
 <div id="bd">
