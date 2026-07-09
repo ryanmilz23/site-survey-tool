@@ -6,7 +6,7 @@
 <title>Site Survey Annotation Tool</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%}
+html,body{height:100%;overflow:hidden;overscroll-behavior:none}
 body{background:#111318;color:#e8eaf0;font-family:system-ui,-apple-system,sans-serif;height:100vh;display:flex;flex-direction:column;overflow:hidden;user-select:none;-webkit-user-select:none}
 
 #tb{display:flex;align-items:center;gap:5px;padding:0 12px;min-height:52px;flex-shrink:0;background:#1c1f27;border-bottom:1px solid #2a2d38;overflow-x:auto;flex-wrap:nowrap}
@@ -999,7 +999,20 @@ window.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('cloudmodal').class
 function pinToTop(){if(window.pageYOffset||window.pageXOffset){window.scrollTo(0,0);}const se=document.scrollingElement;if(se&&(se.scrollTop||se.scrollLeft)){se.scrollTop=0;se.scrollLeft=0;}}
 document.addEventListener('focusout',()=>setTimeout(pinToTop,60),true);
 window.addEventListener('scroll',()=>{if(window.pageYOffset||window.pageXOffset)pinToTop();},{passive:true});
-if(window.visualViewport){window.visualViewport.addEventListener('resize',()=>{if(!document.activeElement||!/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName))pinToTop();});}
+// Glue the whole app to the *visible* (visual) viewport. On iPad the keyboard
+// shrinks/offsets the visual viewport instead of doing a normal page scroll,
+// which pushed the toolbar off the top with no way to scroll back. By sizing
+// the page to the visible area (and pinning it) there is simply nowhere for
+// the toolbar to go — it always stays in view. Field text stays 16px so iOS
+// never zooms, so the browser has no reason to shift things either.
+if(window.visualViewport){
+  const vv=window.visualViewport;
+  const fit=()=>{const h=Math.max(200,Math.round(vv.height))+'px';document.documentElement.style.height=h;document.body.style.height=h;pinToTop();};
+  vv.addEventListener('resize',fit);
+  vv.addEventListener('scroll',pinToTop);
+  window.addEventListener('orientationchange',()=>setTimeout(fit,300));
+  fit();
+}
 $('camcancel').addEventListener('click',closeCam);
 $('camshot').addEventListener('click',shoot);
 $('camflip').addEventListener('click',()=>{camFacing=camFacing==='environment'?'user':'environment';startStream();});
