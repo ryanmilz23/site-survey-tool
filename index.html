@@ -131,6 +131,13 @@ select.cloud-in{cursor:pointer}
 .cloud-row-ic{font-size:18px;flex-shrink:0}
 .cloud-row-t{flex:1;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cloud-row-x{color:#64748b;font-size:18px;flex-shrink:0}
+.proj-row{display:flex;gap:6px;align-items:stretch}
+.proj-open{flex:1;display:flex;align-items:center;gap:11px;text-align:left;background:#111318;border:1px solid #2a2d38;border-radius:9px;padding:13px 14px;cursor:pointer;color:#e8eaf0;font-family:inherit;font-size:14px;min-width:0}
+.proj-open:hover{background:#242832;border-color:#3a3f4d}
+.proj-nm{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.proj-icon{width:48px;flex-shrink:0;border:1px solid #2a2d38;background:#111318;border-radius:9px;color:#e2e8f0;font-size:16px;cursor:pointer}
+.proj-icon:hover{background:#242832;border-color:#3a3f4d}
+.proj-del:hover{background:#dc2626;border-color:#dc2626}
 .cloud-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px}
 .cloud-card{position:relative;border-radius:10px}
 .cloud-card-open{display:flex;flex-direction:column;gap:0;width:100%;background:#111318;border:1px solid #2a2d38;border-radius:10px;overflow:hidden;cursor:pointer;color:#e8eaf0;font-family:inherit;padding:0}
@@ -1087,8 +1094,32 @@ async function renderProjectsHome(){
   try{projects=await sbListProjects()||[];}
   catch(e){$('home-body').innerHTML='';homeMsg('Couldn\'t reach the cloud ('+e.message+').',true);return;}
   if(!projects.length){$('home-body').innerHTML='<div class="cloud-empty">No projects yet.<br><br>Tap <b>➕ New Project</b> to make your first job folder.</div>';return;}
-  $('home-body').innerHTML='<div class="cloud-list">'+projects.map(p=>`<button class="cloud-row" data-id="${escHtml(p.id)}" data-name="${escHtml(p.name)}"><span class="cloud-row-ic">📁</span><span class="cloud-row-t">${escHtml(p.name)}</span><span class="cloud-row-x">›</span></button>`).join('')+'</div>';
-  $('home-body').querySelectorAll('.cloud-row').forEach(b=>b.addEventListener('click',()=>openProjectView(b.dataset.id,b.dataset.name)));
+  $('home-body').innerHTML='<div class="cloud-list">'+projects.map(p=>`<div class="proj-row"><button class="proj-open" data-id="${escHtml(p.id)}" data-name="${escHtml(p.name)}"><span class="cloud-row-ic">📁</span><span class="proj-nm">${escHtml(p.name)}</span></button><button class="proj-icon proj-rename" title="Rename project" data-id="${escHtml(p.id)}" data-name="${escHtml(p.name)}">✏️</button><button class="proj-icon proj-del" title="Delete project" data-id="${escHtml(p.id)}" data-name="${escHtml(p.name)}">🗑</button></div>`).join('')+'</div>';
+  $('home-body').querySelectorAll('.proj-open').forEach(b=>b.addEventListener('click',()=>openProjectView(b.dataset.id,b.dataset.name)));
+  $('home-body').querySelectorAll('.proj-rename').forEach(b=>b.addEventListener('click',()=>renameProject(b.dataset.id,b.dataset.name)));
+  $('home-body').querySelectorAll('.proj-del').forEach(b=>b.addEventListener('click',()=>deleteProject(b.dataset.id,b.dataset.name)));
+}
+async function renameProject(id,cur){
+  const name=(prompt('Rename project:',cur||'')||'').trim();
+  if(!name||name===cur)return;
+  homeMsg('Renaming…');
+  try{
+    await sbRest('projects?id=eq.'+id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})});
+    if(S.projectId===id)S.projectName=name;
+    homeMsg('');renderProjectsHome();
+  }catch(e){homeMsg('Rename failed: '+e.message,true);}
+}
+async function deleteProject(id,name){
+  if(!confirm('Delete the entire project “'+(name||'')+'” and ALL of its photos? This can’t be undone.'))return;
+  homeMsg('Deleting project…');
+  try{
+    let walls=[];try{walls=await sbListWalls(id)||[];}catch(e){}
+    for(const w of walls){if(w.photo_path){try{await sbDeleteObject(w.photo_path);}catch(e){}}}
+    await sbRest('walls?project_id=eq.'+id,{method:'DELETE',headers:{Prefer:'return=minimal'}});
+    await sbRest('projects?id=eq.'+id,{method:'DELETE',headers:{Prefer:'return=minimal'}});
+    if(S.projectId===id){S.projectId=null;S.wallId=null;S.projectName='';}
+    homeMsg('');renderProjectsHome();
+  }catch(e){homeMsg('Delete failed: '+e.message,true);}
 }
 async function createProjectPrompt(){
   const name=(prompt('Name this project / job folder:')||'').trim();
