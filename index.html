@@ -132,11 +132,14 @@ select.cloud-in{cursor:pointer}
 .cloud-row-t{flex:1;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cloud-row-x{color:#64748b;font-size:18px;flex-shrink:0}
 .cloud-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px}
-.cloud-card{display:flex;flex-direction:column;gap:0;background:#111318;border:1px solid #2a2d38;border-radius:10px;overflow:hidden;cursor:pointer;color:#e8eaf0;font-family:inherit;padding:0}
-.cloud-card:hover{border-color:#14b8a6}
+.cloud-card{position:relative;border-radius:10px}
+.cloud-card-open{display:flex;flex-direction:column;gap:0;width:100%;background:#111318;border:1px solid #2a2d38;border-radius:10px;overflow:hidden;cursor:pointer;color:#e8eaf0;font-family:inherit;padding:0}
+.cloud-card-open:hover{border-color:#14b8a6}
 .cloud-card img{width:100%;aspect-ratio:4/3;object-fit:cover;background:#0d1117;display:block}
 .cloud-card-noimg{width:100%;aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;font-size:30px;background:#0d1117;color:#374151}
 .cloud-card-t{padding:9px 10px;font-size:12.5px;font-weight:600;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cloud-card-del{position:absolute;top:6px;right:6px;width:32px;height:32px;border-radius:8px;background:rgba(0,0,0,.6);border:none;color:#fff;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1}
+.cloud-card-del:hover{background:#dc2626}
 @media (max-width:760px){
   #cloudpanel{max-height:92vh}
   #cloudbody{padding:15px}
@@ -884,6 +887,7 @@ async function sbDownloadDataURL(path){
   if(!res.ok)throw new Error('photo download '+res.status);
   return blobToDataURL(await res.blob());
 }
+async function sbDeleteObject(path){const res=await fetch(sbStorageObj()+encodeURI(path),{method:'DELETE',headers:sbHeaders()});if(!res.ok&&res.status!==404)throw new Error('photo delete '+res.status);}
 function blobToDataURL(blob){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=()=>rej(new Error('could not read photo'));r.readAsDataURL(blob);});}
 function dataURLToBlob(durl){const c=durl.indexOf(','),meta=durl.slice(0,c),b64=durl.slice(c+1);const mime=(meta.match(/data:([^;]+)/)||[])[1]||'image/jpeg';const bin=atob(b64),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return new Blob([u],{type:mime});}
 function compositeCanvasP(){return new Promise((res,rej)=>{try{compositeCanvas(can=>res(can));}catch(e){rej(e);}});}
@@ -1095,8 +1099,20 @@ async function openProjectView(pid,name){
   try{walls=await sbListWalls(pid)||[];}
   catch(e){$('home-body').innerHTML='';homeMsg('Couldn\'t load this project ('+e.message+').',true);return;}
   if(!walls.length){$('home-body').innerHTML='<div class="cloud-empty">No photos in this project yet.<br><br>Use <b>➕ Add photos</b> or <b>📷 Take photo</b> to add some.</div>';return;}
-  $('home-body').innerHTML='<div class="cloud-grid">'+walls.map(w=>`<button class="cloud-card" data-id="${escHtml(w.id)}">${w.thumb?`<img src="${escHtml(w.thumb)}" alt="">`:'<div class="cloud-card-noimg">📐</div>'}<span class="cloud-card-t">${escHtml(w.title||'Untitled')}</span></button>`).join('')+'</div>';
-  $('home-body').querySelectorAll('.cloud-card').forEach(b=>b.addEventListener('click',()=>editWall(b.dataset.id)));
+  $('home-body').innerHTML='<div class="cloud-grid">'+walls.map(w=>`<div class="cloud-card"><button class="cloud-card-open" data-id="${escHtml(w.id)}">${w.thumb?`<img src="${escHtml(w.thumb)}" alt="">`:'<div class="cloud-card-noimg">📐</div>'}<span class="cloud-card-t">${escHtml(w.title||'Untitled')}</span></button><button class="cloud-card-del" title="Delete this photo" data-id="${escHtml(w.id)}" data-path="${escHtml(w.photo_path||'')}" data-title="${escHtml(w.title||'this photo')}">🗑</button></div>`).join('')+'</div>';
+  $('home-body').querySelectorAll('.cloud-card-open').forEach(b=>b.addEventListener('click',()=>editWall(b.dataset.id)));
+  $('home-body').querySelectorAll('.cloud-card-del').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();confirmDeleteWall(b.dataset.id,b.dataset.path,b.dataset.title);}));
+}
+async function confirmDeleteWall(id,path,title){
+  if(!confirm('Delete “'+(title||'this photo')+'” from the project? This can’t be undone.'))return;
+  homeMsg('Deleting…');
+  try{
+    await sbRest('walls?id=eq.'+id,{method:'DELETE',headers:{Prefer:'return=minimal'}});
+    if(path){try{await sbDeleteObject(path);}catch(e){}}
+    if(S.wallId===id){S.wallId=null;}
+    homeMsg('');
+    openProjectView(S.projectId,S.projectName);
+  }catch(e){homeMsg('Delete failed: '+e.message,true);}
 }
 async function editWall(wallId){
   homeMsg('Opening…');
