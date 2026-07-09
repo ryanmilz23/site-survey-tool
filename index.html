@@ -80,7 +80,7 @@ body{background:#111318;color:#e8eaf0;font-family:system-ui,-apple-system,sans-s
 #sb{min-height:30px;display:flex;align-items:center;padding:0 12px;gap:8px;flex-shrink:0;background:#1c1f27;border-top:1px solid #2a2d38;font-size:11px;color:#64748b}
 .sd{width:6px;height:6px;border-radius:50%;background:#60a5fa;flex-shrink:0;transition:background .2s}
 .sd.lm{background:#fbbf24}
-.hiddenfile{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);border:0;opacity:0}
+.hiddenfile{position:fixed;top:50%;left:50%;width:1px;height:1px;padding:0;margin:0;border:0;opacity:0;pointer-events:none;z-index:-1}
 
 #camov{display:none;position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.92);align-items:center;justify-content:center;padding:16px}
 #camov.on{display:flex}
@@ -454,7 +454,37 @@ function dl(){if(S.sel==null)return;commit(S.lines.filter(l=>l.id!==S.sel));S.se
 function ca(){if(!S.lines.length)return;if(!confirm('Clear all '+S.lines.length+' annotation'+(S.lines.length>1?'s':'')+'? This can be undone with Ctrl+Z.'))return;commit([]);S.sel=null;up();ss();}
 function un(){if(!S.hist.length)return;S.lines=S.hist[S.hist.length-1];S.hist=S.hist.slice(0,-1);S.sel=null;render();up();uu();uc();ss();}
 
-function loadImageSrc(src){const im=new Image();im.onload=()=>{S.img={src,w:im.naturalWidth,h:im.naturalHeight};S.lines=[];S.hist=[];S.sel=null;S.drag=null;S.vb={x:0,y:0,w:S.img.w,h:S.img.h};const s=$('cv');s.setAttribute('viewBox',`0 0 ${S.img.w} ${S.img.h}`);const b=$('bg');b.setAttribute('href',src);b.setAttribute('width',S.img.w);b.setAttribute('height',S.img.h);$('dz').style.display='none';s.style.display='block';$('zoomctl').classList.add('on');render();up();uu();uc();$('savebtn').style.display='flex';st('line');};im.onerror=()=>{alert('Sorry, that image could not be loaded. Please try a different photo or format (JPG/PNG).');};im.src=src;}
+function loadImageSrc(src,heicFile){const im=new Image();im.onload=()=>{S.img={src,w:im.naturalWidth,h:im.naturalHeight};S.lines=[];S.hist=[];S.sel=null;S.drag=null;S.vb={x:0,y:0,w:S.img.w,h:S.img.h};const s=$('cv');s.setAttribute('viewBox',`0 0 ${S.img.w} ${S.img.h}`);const b=$('bg');b.setAttribute('href',src);b.setAttribute('width',S.img.w);b.setAttribute('height',S.img.h);$('dz').style.display='none';s.style.display='block';$('zoomctl').classList.add('on');render();up();uu();uc();$('savebtn').style.display='flex';st('line');};im.onerror=()=>{if(heicFile){convertHeic(heicFile);}else{alert('Sorry, that image could not be loaded. Please try a different photo or format (JPG/PNG).');}};im.src=src;}
+
+// ── HEIC fallback: only fetched & run if the browser can't decode the photo natively ──
+let heicLibPromise=null;
+function loadHeicLib(){
+  if(window.heic2any)return Promise.resolve();
+  if(heicLibPromise)return heicLibPromise;
+  heicLibPromise=new Promise((res,rej)=>{
+    const s=document.createElement('script');
+    s.src='https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js';
+    s.onload=res;
+    s.onerror=()=>{heicLibPromise=null;rej(new Error('converter download failed'));};
+    document.head.appendChild(s);
+  });
+  return heicLibPromise;
+}
+async function convertHeic(f){
+  $('st').textContent='Converting HEIC photo… this can take a few seconds';
+  try{
+    await loadHeicLib();
+    const out=await heic2any({blob:f,toType:'image/jpeg',quality:0.92});
+    const blob=Array.isArray(out)?out[0]:out;
+    const r=new FileReader();
+    r.onload=()=>loadImageSrc(r.result);
+    r.onerror=()=>{alert('Could not read the converted photo. Please try again.');$('st').textContent='Load a photo, then pick a tool to start';};
+    r.readAsDataURL(blob);
+  }catch(err){
+    alert("This looks like a HEIC photo and it couldn't be converted (an internet connection is needed the first time). Try picking it from your Photos library instead, or use a JPG/PNG.");
+    $('st').textContent='Load a photo, then pick a tool to start';
+  }
+}
 // ── Editable project data: encode/decode helpers (shared by PNG + SVG) ──
 function utf8ToB64(str){const bytes=new TextEncoder().encode(str);let bin='';const ch=0x8000;for(let i=0;i<bytes.length;i+=ch)bin+=String.fromCharCode.apply(null,bytes.subarray(i,i+ch));return btoa(bin);}
 function b64ToUtf8(b64){const bin=atob(b64);const bytes=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);return new TextDecoder().decode(bytes);}
@@ -516,7 +546,8 @@ function hu(e){
     r.onerror=()=>alert('Could not read that file. Please try again.');
     r.readAsArrayBuffer(f);
   }else{
-    const r=new FileReader();r.onload=()=>loadImageSrc(r.result);r.onerror=()=>alert('Could not read that file. Please try again.');r.readAsDataURL(f);
+    const isHeic=/\.hei[cf]$/i.test(name)||/hei[cf]/i.test(f.type||'');
+    const r=new FileReader();r.onload=()=>loadImageSrc(r.result,isHeic?f:null);r.onerror=()=>alert('Could not read that file. Please try again.');r.readAsDataURL(f);
   }
   e.target.value='';
 }
