@@ -453,7 +453,7 @@ function render(){
 
 function isMobile(){return window.matchMedia('(max-width:760px)').matches;}
 function openDrawer(){if(S.sel==null)return;$('pn').classList.add('show');if(isMobile()){$('scrim').classList.add('on');S.drawerAt=Date.now();}}
-function closeDrawer(){$('pn').classList.remove('show');$('scrim').classList.remove('on');}
+function closeDrawer(){$('pn').classList.remove('show');$('scrim').classList.remove('on');pinToTop();}
 function up(){
   const pn=$('pn'),l=S.lines.find(l=>l.id===S.sel);
   if(!l){closeDrawer();return;}
@@ -987,6 +987,19 @@ $('dzcloud').addEventListener('click',e=>{e.preventDefault();e.stopPropagation()
 $('cloudclose').addEventListener('click',closeCloudModal);
 $('cloudmodal').addEventListener('click',e=>{if(e.target===$('cloudmodal'))closeCloudModal();});
 window.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('cloudmodal').classList.contains('on'))closeCloudModal();},true);
+
+// ── iOS/Safari keyboard-scroll trap fix ──────────────────────────
+// When a text field is tapped, iOS scrolls the whole page up to reveal it
+// (even though this app is a fixed full-screen layout) and often leaves the
+// page scrolled after the keyboard closes — stranding the toolbar off-screen
+// so the app looks frozen. This app never legitimately scrolls the window, so
+// we simply pin it to the top whenever focus leaves a field or a stray scroll
+// happens. Guarded so it only fires when actually displaced (avoids fighting
+// any momentum on non-buggy browsers).
+function pinToTop(){if(window.pageYOffset||window.pageXOffset){window.scrollTo(0,0);}const se=document.scrollingElement;if(se&&(se.scrollTop||se.scrollLeft)){se.scrollTop=0;se.scrollLeft=0;}}
+document.addEventListener('focusout',()=>setTimeout(pinToTop,60),true);
+window.addEventListener('scroll',()=>{if(window.pageYOffset||window.pageXOffset)pinToTop();},{passive:true});
+if(window.visualViewport){window.visualViewport.addEventListener('resize',()=>{if(!document.activeElement||!/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName))pinToTop();});}
 $('camcancel').addEventListener('click',closeCam);
 $('camshot').addEventListener('click',shoot);
 $('camflip').addEventListener('click',()=>{camFacing=camFacing==='environment'?'user':'environment';startStream();});
