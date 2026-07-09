@@ -76,10 +76,20 @@
 
 ## Roadmap (agreed order)
 
-1. **Supabase cloud project library** — `projects` table (job folders) + `walls` table (annotated photos) + Storage bucket for photo files (photos in storage, only pointer URLs in table rows). Save flow gains "Save locally" (existing) vs "Save to a project". Three phases: backend setup → save flow → browse library. Supabase project setup was in progress; needs Project URL + anon key. **Local-first stays the default** — cloud is opt-in (resolves confidentiality for external users).
+1. **Supabase cloud project library** — `projects` table (job folders) + `walls` table (annotated photos) + Storage bucket for photo files (photos in storage, only pointer URLs in table rows). Save flow gains "Save locally" (existing) vs "Save to a project". Three phases: backend setup → save flow → browse library. **Local-first stays the default** — cloud is opt-in (resolves confidentiality for external users). **STATUS (July 9, 2026): the full client is built and live in `index.html`** — see "Cloud library" below. It stays dormant until the two Supabase keys are pasted into the config block at the top of the `<script>`. Remaining: paste keys, run the schema SQL, live-test the round-trip.
 2. **Authentication / login gate** — library launches open-access, login added as near-term follow-up.
 3. **Multi-page PDF export** — bundle all walls of a job into one packet, matching the company's existing install-deck format (a sample deck PDF exists as reference).
 4. **PWA installability**; in-app camera (lower priority).
+
+## Cloud library (Supabase) — how it's wired (added July 9, 2026)
+
+- **Zero-dependency**: talks to Supabase via plain `fetch` against the REST + Storage HTTP APIs. No SDK, no CDN — the single-file guarantee holds.
+- **Config**: two constants (`SUPABASE_URL`, `SUPABASE_KEY`) in a labelled banner at the top of the `<script>`. Blank by default → cloud buttons show a friendly "not switched on yet" note and every local feature is untouched. `cloudReady()` gates all cloud code.
+- **UI entry points**: ☁ **Library** button in the toolbar and an "Open from a project" button on the drop zone (both open the browse modal); **Save → Save to a project** row in the save dropdown (opens the save modal). One shared modal (`#cloudmodal`).
+- **Data model**: `projects(id, name, created_at)` = job folders. `walls(id, project_id, title, data jsonb, photo_path, thumb, created_at, updated_at)`. The editable annotation state (same shape as `projectData()`, **minus** the photo) goes in `data`; the photo bytes go to the `survey-photos` Storage bucket at `<project_id>/<wall_id>.<ext>`; a small JPEG preview goes in `thumb` for the browse grid.
+- **Round-trip**: save = insert wall row → upload photo → patch row with `photo_path`+`thumb`. Open = fetch row → download photo from Storage as a **data URL** (kept self-contained so PNG/PDF/SVG export stays offline-safe and canvas never taints) → `restoreProject()`. Reuses the exact same restore path as reopening a local file, so the editable round-trip is identical.
+- **Access**: launches open-access (no login) per roadmap — RLS policies allow the anon role full read/write. Auth gate (roadmap #2) tightens this later.
+- **Setup SQL** to run once in the Supabase SQL editor lives with the session notes; it is idempotent (safe to re-run) and creates both tables, the bucket, and the open-access policies.
 
 ## Working agreement for Claude Code sessions
 
