@@ -143,6 +143,30 @@ select.cloud-in{cursor:pointer}
   .cloud-grid{grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px}
 }
 
+/* ── Projects home screen ── */
+#ctx{display:none;align-items:center;gap:4px;font-size:11px;font-weight:700;color:#5eead4;background:rgba(20,184,166,.14);border:1px solid rgba(20,184,166,.4);border-radius:6px;padding:4px 8px;white-space:nowrap;flex-shrink:0;max-width:120px;overflow:hidden;text-overflow:ellipsis}
+#home{display:none;position:fixed;inset:0;z-index:90;background:#111318;flex-direction:column}
+#home.on{display:flex}
+#home-head{display:flex;align-items:center;gap:10px;padding:16px 20px;border-bottom:1px solid #2a2d38;flex-shrink:0}
+#home-back{width:34px;height:34px;border-radius:8px;background:#2a2d38;color:#e2e8f0;border:none;font-size:22px;line-height:1;cursor:pointer;flex-shrink:0;align-items:center;justify-content:center}
+#home-back:hover{background:#374151}
+#home-title{font-size:19px;font-weight:800;color:#f1f5f9;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+#home-actions{display:flex;gap:10px;padding:16px 20px 4px;flex-wrap:wrap;flex-shrink:0}
+.home-btn{display:flex;align-items:center;gap:6px;background:#1c1f27;border:1px solid #2a2d38;color:#e8eaf0;border-radius:10px;padding:12px 16px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit}
+.home-btn:hover{background:#242832;border-color:#3a3f4d}
+.home-btn.primary{background:#0f766e;border-color:#14b8a6;color:#ccfbf1}
+.home-btn.primary:hover{background:#115e59}
+#home-body{flex:1;overflow-y:auto;padding:14px 20px 20px;display:flex;flex-direction:column;gap:8px}
+#home-status{padding:0 20px 14px;font-size:12px;color:#94a3b8}
+#home-status:empty{display:none}
+@media (max-width:760px){
+  #home-head{padding:14px 16px}
+  #home-actions{padding:14px 16px 2px}
+  #home-body{padding:12px 16px 18px}
+  .home-btn{flex:1;justify-content:center;padding:14px 10px}
+  #home-title{font-size:17px}
+}
+
 @media (max-width:760px){
   #tb{position:relative;z-index:70;gap:4px;min-height:50px}
   #cw{padding:8px;min-height:0}
@@ -174,7 +198,9 @@ select.cloud-in{cursor:pointer}
 <body>
 
 <div id="tb">
+  <button class="b" id="homebtn" title="Back to your projects">🗂<span class="lbl"> Projects</span></button>
   <div class="brand mob-hide"><div class="bi">📐</div></div>
+  <span id="ctx" title="This photo belongs to a project" style="display:none"></span>
   <input id="ti" class="ti" type="text" placeholder="Untitled survey" title="Name this survey — saved with the file and used as the download name" autocomplete="off" spellcheck="false">
   <div class="sep"></div>
   <button class="up" id="loadbtn" title="Load a photo from your library or files">🖼<span class="lbl"> Load photo</span></button>
@@ -273,7 +299,7 @@ select.cloud-in{cursor:pointer}
       </div>
     </div>
     <div id="ps" class="lineonly"><div>Length: <span id="sl">—</span></div><div>Angle: <span id="sa">—</span></div></div>
-    <button id="donebtn">✓ Done</button>
+    <button id="donebtn" title="Apply this label and close its settings — keep drawing more, then Save when the whole photo is ready">✓ Apply</button>
     <button id="db">✕ Delete line</button>
   </div>
 </div>
@@ -285,8 +311,18 @@ select.cloud-in{cursor:pointer}
   <button class="smi" data-fmt="png"><span class="smi-ic">🖼</span><span class="smi-tx"><b>PNG</b><span>Flat image — quick to view or text</span></span></button>
   <button class="smi" data-fmt="svg"><span class="smi-ic">✦</span><span class="smi-tx"><b>SVG</b><span>Editable vector — opens in Illustrator</span></span></button>
   <div class="smi-sep"></div>
-  <button class="smi" data-fmt="cloud"><span class="smi-ic">☁️</span><span class="smi-tx"><b>Save to a project</b><span>Cloud library — reopen on any device</span></span></button>
+  <button class="smi" id="smi-cloud" data-fmt="cloud"><span class="smi-ic">☁️</span><span class="smi-tx"><b>Save to a project</b><span>Cloud library — reopen on any device</span></span></button>
   <div class="smi-note">Local files reopen here; cloud syncs across devices</div>
+</div>
+
+<div id="home">
+  <div id="home-head">
+    <button id="home-back" title="Back to all projects" style="display:none">‹</button>
+    <div id="home-title">Projects</div>
+  </div>
+  <div id="home-actions"></div>
+  <div id="home-body"></div>
+  <div id="home-status"></div>
 </div>
 
 <div id="cloudmodal">
@@ -308,6 +344,8 @@ select.cloud-in{cursor:pointer}
 
 <input type="file" id="ufile" accept="image/*,.svg,.pdf" class="hiddenfile">
 <input type="file" id="ucap" accept="image/*" capture="environment" class="hiddenfile">
+<input type="file" id="projfiles" accept="image/*" multiple class="hiddenfile">
+<input type="file" id="projcap" accept="image/*" capture="environment" class="hiddenfile">
 
 <div id="camov">
   <div id="caminner">
@@ -325,6 +363,8 @@ select.cloud-in{cursor:pointer}
 const PAL=[{h:'#FFD60A',n:'Yellow'},{h:'#FF3B30',n:'Red'},{h:'#FF9F0A',n:'Orange'},{h:'#34C759',n:'Green'},{h:'#5AC8FA',n:'Cyan'},{h:'#0A84FF',n:'Blue'},{h:'#BF5AF2',n:'Purple'},{h:'#FF2D55',n:'Pink'},{h:'#FFFFFF',n:'White'},{h:'#1C1C1E',n:'Black'}];
 const NS='http://www.w3.org/2000/svg';
 let S={img:null,title:'',lines:[],hist:[],tool:'select',drawing:null,pos:null,sel:null,color:'#FFD60A',thick:3,drag:null,cap:'triangle',capSize:'md',bubble:'rgba(0,0,0,.88)'};
+// Project-library context: which project/photo (wall) the editor is bound to.
+S.projectId=null;S.projectName='';S.wallId=null;S.camTarget=null;S.dirty=false;
 
 // ╔══════════════════════════════════════════════════════════════╗
 // ║  SUPABASE CLOUD LIBRARY — paste your two values below.         ║
@@ -475,7 +515,7 @@ function up(){
   if(!isText){$('sl').textContent=Math.round(Math.hypot(l.x2-l.x1,l.y2-l.y1))+'px';$('sa').textContent=Math.round(Math.atan2(l.y2-l.y1,l.x2-l.x1)*180/Math.PI)+'°';}
   if(!('ontouchstart' in window)&&!navigator.maxTouchPoints){setTimeout(()=>$('li').focus(),40);}
 }
-function commit(nl){S.hist=[...S.hist.slice(-40),S.lines];S.lines=nl;render();uu();uc();}
+function commit(nl){S.hist=[...S.hist.slice(-40),S.lines];S.lines=nl;S.dirty=true;render();uu();uc();}
 function ck(id){if(S.tool!=='select'){st('select');}const cur=S.lines.find(l=>l.id===S.sel);if(cur&&cur.id!==id&&cur.type==='text'&&!cur.label.trim()){S.lines=S.lines.filter(l=>l.id!==cur.id);}S.sel=id;up();openDrawer();render();ss();}
 function dsl(){const cur=S.lines.find(l=>l.id===S.sel);if(cur&&cur.type==='text'&&!cur.label.trim()){S.lines=S.lines.filter(l=>l.id!==S.sel);}S.sel=null;up();render();ss();}
 function st(t){S.tool=t;S.drawing=null;if(isMobile())closeDrawer();render();$('cv').style.cursor=(t==='line')?'crosshair':(t==='text')?'text':'default';$('bs').className='b tool'+(t==='select'?' s-on':'');$('bl').className='b tool'+(t==='line'?' l-on':'');$('bt').className='b tool'+(t==='text'?' t-tool-on':'');$('sdot').classList.toggle('lm',t==='line'||t==='text');ss();}
@@ -522,7 +562,7 @@ function dl(){if(S.sel==null)return;commit(S.lines.filter(l=>l.id!==S.sel));S.se
 function ca(){if(!S.lines.length)return;if(!confirm('Clear all '+S.lines.length+' annotation'+(S.lines.length>1?'s':'')+'? This can be undone with Ctrl+Z.'))return;commit([]);S.sel=null;up();ss();}
 function un(){if(!S.hist.length)return;S.lines=S.hist[S.hist.length-1];S.hist=S.hist.slice(0,-1);S.sel=null;render();up();uu();uc();ss();}
 
-function loadImageSrc(src,heicFile){const im=new Image();im.onload=()=>{S.img={src,w:im.naturalWidth,h:im.naturalHeight};S.lines=[];S.hist=[];S.sel=null;S.drag=null;S.vb={x:0,y:0,w:S.img.w,h:S.img.h};const s=$('cv');s.setAttribute('viewBox',`0 0 ${S.img.w} ${S.img.h}`);const b=$('bg');b.setAttribute('href',src);b.setAttribute('width',S.img.w);b.setAttribute('height',S.img.h);$('dz').style.display='none';s.style.display='block';$('zoomctl').classList.add('on');render();up();uu();uc();$('savebtn').style.display='flex';st('line');};im.onerror=()=>{if(heicFile){convertHeic(heicFile);}else{alert('Sorry, that image could not be loaded. Please try a different photo or format (JPG/PNG).');}};im.src=src;}
+function loadImageSrc(src,heicFile){const im=new Image();im.onload=()=>{S.projectId=null;S.wallId=null;S.projectName='';S.dirty=false;S.img={src,w:im.naturalWidth,h:im.naturalHeight};S.lines=[];S.hist=[];S.sel=null;S.drag=null;S.vb={x:0,y:0,w:S.img.w,h:S.img.h};const s=$('cv');s.setAttribute('viewBox',`0 0 ${S.img.w} ${S.img.h}`);const b=$('bg');b.setAttribute('href',src);b.setAttribute('width',S.img.w);b.setAttribute('height',S.img.h);$('dz').style.display='none';s.style.display='block';$('zoomctl').classList.add('on');render();up();uu();uc();$('savebtn').style.display='flex';updateEditorCtx();st('line');};im.onerror=()=>{if(heicFile){convertHeic(heicFile);}else{alert('Sorry, that image could not be loaded. Please try a different photo or format (JPG/PNG).');}};im.src=src;}
 
 // ── HEIC fallback: only fetched & run if the browser can't decode the photo natively ──
 let heicLibPromise=null;
@@ -570,10 +610,12 @@ function extractPNGData(arr){if(arr.length<8)return null;const dv=new DataView(a
 function extractSVGData(text){try{const m=text.match(/<metadata id="site-survey-annotator">([A-Za-z0-9+/=\s]*)<\/metadata>/);if(!m)return null;return JSON.parse(b64ToUtf8(m[1].replace(/\s/g,'')));}catch(e){return null;}}
 function extractPDFData(arr){try{let s='';for(let i=0;i<arr.length;i++)s+=String.fromCharCode(arr[i]);const m=s.match(/SSA1:([A-Za-z0-9+/=]+)/);if(!m)return null;return JSON.parse(b64ToUtf8(m[1]));}catch(e){return null;}}
 // Rebuild a full editable session from saved data (image + annotations)
-function restoreProject(d){
+function restoreProject(d,keepCtx){
   if(!d||!d.img){alert('That file doesn\'t contain editable survey data — loading it as a new photo instead.');return false;}
   const src=d.img,im=new Image();
   im.onload=()=>{
+    if(!keepCtx){S.projectId=null;S.wallId=null;S.projectName='';}
+    S.dirty=false;
     S.img={src,w:d.w||im.naturalWidth,h:d.h||im.naturalHeight};
     S.lines=(d.lines||[]).map(l=>({...l}));
     S.title=d.title||'';$('ti').value=S.title;
@@ -585,8 +627,10 @@ function restoreProject(d){
     const b=$('bg');b.setAttribute('href',src);b.setAttribute('width',S.img.w);b.setAttribute('height',S.img.h);
     $('dz').style.display='none';s.style.display='block';$('zoomctl').classList.add('on');
     $('savebtn').style.display='flex';
-    sth(S.thick);st('select');render();up();uu();uc();
-    const n=S.lines.length;$('st').textContent=`Reopened — ${n} annotation${n!==1?'s':''} restored and fully editable`;
+    sth(S.thick);st('select');render();up();uu();uc();updateEditorCtx();
+    const n=S.lines.length;
+    if(S.wallId)$('st').textContent=`Editing “${S.title||'photo'}” in ${S.projectName||'project'} — draw, then Save when ready`;
+    else $('st').textContent=`Reopened — ${n} annotation${n!==1?'s':''} restored and fully editable`;
   };
   im.onerror=()=>alert('Could not read the embedded image from that file.');
   im.src=src;return true;
@@ -882,16 +926,14 @@ async function doCloudSave(){
     const photoBlob=dataURLToBlob(pd.img);
     const ext=((photoBlob.type.split('/')[1]||'jpg').replace('jpeg','jpg').replace('svg+xml','png').replace(/[^a-z0-9]/gi,''))||'jpg';
     const data={...pd};delete data.img;              // photo lives in Storage, not the row
-    const inserted=await sbRest('walls',{method:'POST',headers:{'Content-Type':'application/json',Prefer:'return=representation'},body:JSON.stringify({project_id:pid,title:title||null,data})});
-    const wall=inserted&&inserted[0];
-    if(!wall)throw new Error('the survey row was not created');
-    const path=pid+'/'+wall.id+'.'+ext;
-    await sbUpload(path,photoBlob);
     let thumb=null;try{thumb=makeThumb(await compositeCanvasP(),360);}catch(e){thumb=null;}
-    try{await sbRest('walls?id=eq.'+wall.id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({photo_path:path,thumb})});}
-    catch(e){await sbRest('walls?id=eq.'+wall.id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({photo_path:path})});}
-    closeCloudModal();
-    $('st').textContent='Saved to the cloud project library ☁ — reopen it from Library on any device';
+    const wall=await createWall(pid,title,data,photoBlob,ext,thumb);
+    // Bind the editor to this new project photo so further Saves update it.
+    S.projectId=pid;S.wallId=wall.id;
+    const proj=(sel.selectedOptions&&sel.selectedOptions[0]&&sel.value!=='__new')?sel.selectedOptions[0].textContent:($('cloud-newname')?($('cloud-newname').value||'').trim():'');
+    S.projectName=proj||S.projectName;S.dirty=false;
+    closeCloudModal();updateEditorCtx();
+    $('st').textContent='Saved to '+(S.projectName||'the project library')+' ☁ — further edits Save straight back here';
   }catch(e){cloudMsg('Save failed: '+e.message,true);btn.disabled=false;}
 }
 
@@ -932,6 +974,150 @@ async function doCloudOpen(id){
     closeCloudModal();
     restoreProject(data);
   }catch(e){cloudMsg('Open failed: '+e.message,true);}
+}
+
+// ══════════════════════════════════════════════════════════════
+//  Project-first workflow: Projects home → open a project → add /
+//  take photos → tap a photo to edit → explicit Save back to it.
+// ══════════════════════════════════════════════════════════════
+function extFromMime(m){return ((m||'').split('/')[1]||'jpg').replace('jpeg','jpg').replace('svg+xml','png').replace(/[^a-z0-9]/gi,'')||'jpg';}
+function makeThumbFromImg(im,maxSide){const w0=im.naturalWidth||im.width,h0=im.naturalHeight||im.height,s=Math.min(1,maxSide/Math.max(w0,h0));const c=document.createElement('canvas');c.width=Math.max(1,Math.round(w0*s));c.height=Math.max(1,Math.round(h0*s));c.getContext('2d').drawImage(im,0,0,c.width,c.height);return c.toDataURL('image/jpeg',0.72);}
+function readFileDataURL(file){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=()=>rej(new Error('could not read file'));r.readAsDataURL(file);});}
+function loadImgEl(src){return new Promise((res,rej)=>{const im=new Image();im.onload=()=>res(im);im.onerror=()=>rej(new Error('could not decode image'));im.src=src;});}
+async function decodeFile(file){
+  const name=(file.name||'').toLowerCase(),isHeic=/\.hei[cf]$/i.test(name)||/hei[cf]/i.test(file.type||'');
+  let src=await readFileDataURL(file);
+  try{const im=await loadImgEl(src);return{src,im};}
+  catch(e){
+    if(isHeic){await loadHeicLib();const out=await heic2any({blob:file,toType:'image/jpeg',quality:0.92});const blob=Array.isArray(out)?out[0]:out;src=await blobToDataURL(blob);const im=await loadImgEl(src);return{src,im};}
+    throw e;
+  }
+}
+async function createWall(projectId,title,data,photoBlob,ext,thumb){
+  const inserted=await sbRest('walls',{method:'POST',headers:{'Content-Type':'application/json',Prefer:'return=representation'},body:JSON.stringify({project_id:projectId,title:title||null,data})});
+  const wall=inserted&&inserted[0];
+  if(!wall)throw new Error('the photo could not be created');
+  const path=projectId+'/'+wall.id+'.'+ext;
+  await sbUpload(path,photoBlob);
+  try{await sbRest('walls?id=eq.'+wall.id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({photo_path:path,thumb:thumb||null})});}
+  catch(e){await sbRest('walls?id=eq.'+wall.id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({photo_path:path})});}
+  return wall;
+}
+async function addPhotoFileToProject(projectId,file){
+  const {src,im}=await decodeFile(file);
+  const title=(file.name||'').replace(/\.[^.]+$/,'').slice(0,80)||'';
+  const data={v:1,app:'site-survey',title,w:im.naturalWidth,h:im.naturalHeight,thick:S.thick,lines:[]};
+  const blob=dataURLToBlob(src),ext=extFromMime(blob.type),thumb=makeThumbFromImg(im,360);
+  return createWall(projectId,title,data,blob,ext,thumb);
+}
+async function processFilesIntoProject(files){
+  const pid=S.projectId;if(!pid)return;
+  files=[...files];let ok=0,fail=0;
+  for(let i=0;i<files.length;i++){
+    homeMsg('Uploading photo '+(i+1)+' of '+files.length+'…');
+    try{await addPhotoFileToProject(pid,files[i]);ok++;}catch(e){fail++;}
+  }
+  homeMsg(fail?(ok+' added, '+fail+' could not be read'):'',fail>0);
+  openProjectView(S.projectId,S.projectName);
+}
+async function uploadDataURLToProject(src,name){
+  const pid=S.projectId;if(!pid)return;
+  homeMsg('Uploading photo…');
+  try{
+    const im=await loadImgEl(src);
+    const data={v:1,app:'site-survey',title:name||'',w:im.naturalWidth,h:im.naturalHeight,thick:S.thick,lines:[]};
+    const blob=dataURLToBlob(src),ext=extFromMime(blob.type),thumb=makeThumbFromImg(im,360);
+    await createWall(pid,name||'',data,blob,ext,thumb);
+    homeMsg('');openProjectView(S.projectId,S.projectName);
+  }catch(e){homeMsg('Photo failed: '+e.message,true);}
+}
+function projTakePhoto(){if(canLiveCam()&&!isTouch()){S.camTarget='project';openCam();}else{$('projcap').value='';$('projcap').click();}}
+
+// ── Home screen (projects & project detail) ──
+function homeMsg(m,err){const e=$('home-status');if(!e)return;e.textContent=m||'';e.style.color=err?'#fca5a5':'#94a3b8';}
+function isHomeOpen(){return $('home').classList.contains('on');}
+function hideHome(){$('home').classList.remove('on');}
+function showHome(){$('home').classList.add('on');pinToTop();renderProjectsHome();}
+async function renderProjectsHome(){
+  $('home-title').textContent='Projects';
+  $('home-back').style.display='none';
+  $('home-actions').innerHTML='<button class="home-btn primary" id="hp-new">➕ New Project</button><button class="home-btn" id="hp-local">✏️ Quick edit (no project)</button>';
+  $('hp-new').addEventListener('click',createProjectPrompt);
+  $('hp-local').addEventListener('click',startLocalEdit);
+  if(!cloudReady()){$('home-body').innerHTML='<div class="cloud-empty">☁️<div style="margin-top:10px">Cloud projects aren\'t switched on. You can still use <b>Quick edit</b> above to mark up a single photo and export it.</div></div>';homeMsg('');return;}
+  $('home-body').innerHTML='<div class="cloud-loading">Loading your projects…</div>';homeMsg('');
+  let projects;
+  try{projects=await sbListProjects()||[];}
+  catch(e){$('home-body').innerHTML='';homeMsg('Couldn\'t reach the cloud ('+e.message+').',true);return;}
+  if(!projects.length){$('home-body').innerHTML='<div class="cloud-empty">No projects yet.<br><br>Tap <b>➕ New Project</b> to make your first job folder.</div>';return;}
+  $('home-body').innerHTML='<div class="cloud-list">'+projects.map(p=>`<button class="cloud-row" data-id="${escHtml(p.id)}" data-name="${escHtml(p.name)}"><span class="cloud-row-ic">📁</span><span class="cloud-row-t">${escHtml(p.name)}</span><span class="cloud-row-x">›</span></button>`).join('')+'</div>';
+  $('home-body').querySelectorAll('.cloud-row').forEach(b=>b.addEventListener('click',()=>openProjectView(b.dataset.id,b.dataset.name)));
+}
+async function createProjectPrompt(){
+  const name=(prompt('Name this project / job folder:')||'').trim();
+  if(!name)return;
+  homeMsg('Creating…');
+  try{const p=await sbCreateProject(name);homeMsg('');openProjectView(p.id,p.name);}
+  catch(e){homeMsg('Could not create project: '+e.message,true);}
+}
+async function openProjectView(pid,name){
+  S.projectId=pid;S.projectName=name;
+  $('home').classList.add('on');
+  $('home-title').textContent=name;
+  $('home-back').style.display='flex';
+  $('home-actions').innerHTML='<button class="home-btn primary" id="hp-add">➕ Add photos</button><button class="home-btn" id="hp-cam">📷 Take photo</button>';
+  $('hp-add').addEventListener('click',()=>{$('projfiles').value='';$('projfiles').click();});
+  $('hp-cam').addEventListener('click',projTakePhoto);
+  $('home-body').innerHTML='<div class="cloud-loading">Loading photos…</div>';homeMsg('');
+  let walls;
+  try{walls=await sbListWalls(pid)||[];}
+  catch(e){$('home-body').innerHTML='';homeMsg('Couldn\'t load this project ('+e.message+').',true);return;}
+  if(!walls.length){$('home-body').innerHTML='<div class="cloud-empty">No photos in this project yet.<br><br>Use <b>➕ Add photos</b> or <b>📷 Take photo</b> to add some.</div>';return;}
+  $('home-body').innerHTML='<div class="cloud-grid">'+walls.map(w=>`<button class="cloud-card" data-id="${escHtml(w.id)}">${w.thumb?`<img src="${escHtml(w.thumb)}" alt="">`:'<div class="cloud-card-noimg">📐</div>'}<span class="cloud-card-t">${escHtml(w.title||'Untitled')}</span></button>`).join('')+'</div>';
+  $('home-body').querySelectorAll('.cloud-card').forEach(b=>b.addEventListener('click',()=>editWall(b.dataset.id)));
+}
+async function editWall(wallId){
+  homeMsg('Opening…');
+  try{
+    const wall=await sbGetWall(wallId);
+    if(!wall)throw new Error('photo not found');
+    const data=wall.data||{};
+    if(wall.photo_path)data.img=await sbDownloadDataURL(wall.photo_path);
+    if(!data.img)throw new Error('no photo saved with it');
+    S.projectId=wall.project_id||S.projectId;S.wallId=wall.id;
+    hideHome();
+    restoreProject(data,true);
+  }catch(e){homeMsg('Open failed: '+e.message,true);}
+}
+function startLocalEdit(){
+  S.projectId=null;S.wallId=null;S.projectName='';S.dirty=false;
+  hideHome();
+  S.img=null;S.lines=[];S.hist=[];S.sel=null;
+  $('cv').style.display='none';$('dz').style.display='flex';$('zoomctl').classList.remove('on');
+  $('savebtn').style.display='none';$('ti').value='';S.title='';
+  render();uu();uc();updateEditorCtx();ss();
+}
+function goHome(){
+  if(S.img&&S.dirty&&!confirm('Go back to Projects? Any changes you haven\'t saved will be lost.'))return;
+  showHome();
+}
+function updateEditorCtx(){
+  const el=$('ctx');if(!el)return;
+  if(S.projectId&&S.wallId){el.style.display='flex';el.textContent='📁 '+(S.projectName||'Project');}
+  else{el.style.display='none';el.textContent='';}
+}
+async function saveWallUpdate(){
+  if(!S.wallId){openSaveCloudModal();return;}
+  if(!S.img)return;
+  $('st').textContent='Saving to '+(S.projectName||'project')+'…';
+  try{
+    const pd=projectData();const data={...pd};delete data.img;
+    let thumb=null;try{thumb=makeThumb(await compositeCanvasP(),360);}catch(e){}
+    const body={data};if(thumb)body.thumb=thumb;
+    await sbRest('walls?id=eq.'+S.wallId,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    S.dirty=false;
+    $('st').textContent='Saved to '+(S.projectName||'project')+' ☁';
+  }catch(e){alert('Save to project failed: '+e.message);$('st').textContent='Save failed — please try again';}
 }
 
 (function(){const tc=$('tbc'),pc=$('pc');PAL.forEach(({h,n})=>{const t=document.createElement('button');t.className='cd'+(h===S.color?' on':'');t.dataset.h=h;t.title=n;t.style.background=h;if(h==='#FFFFFF')t.style.outlineColor='#555';t.onclick=()=>sco(h);tc.appendChild(t);const p=document.createElement('button');p.className='pcd';p.dataset.h=h;p.title=n;p.style.background=h;if(h==='#FFFFFF')p.style.outlineColor='#555';p.onclick=()=>{sco(h);up();};pc.appendChild(p);});})();
@@ -976,14 +1162,20 @@ function shoot(){
   const c=document.createElement('canvas');c.width=v.videoWidth;c.height=v.videoHeight;
   c.getContext('2d').drawImage(v,0,0);
   const src=c.toDataURL('image/jpeg',0.92);
-  closeCam();loadImageSrc(src);
+  closeCam();
+  if(S.camTarget==='project'){S.camTarget=null;uploadDataURLToProject(src,'');}
+  else loadImageSrc(src);
 }
 $('loadbtn').addEventListener('click',pickFile);
 $('dzload').addEventListener('click',e=>{e.preventDefault();e.stopPropagation();pickFile();});
 $('cam').addEventListener('click',pickCam);
 $('dzcam').addEventListener('click',e=>{e.preventDefault();e.stopPropagation();pickCam();});
-$('cloudbtn').addEventListener('click',openCloudModal);
-$('dzcloud').addEventListener('click',e=>{e.preventDefault();e.stopPropagation();openCloudModal();});
+$('homebtn').addEventListener('click',goHome);
+$('home-back').addEventListener('click',renderProjectsHome);
+$('projfiles').addEventListener('change',e=>{const fs=e.target.files;if(fs&&fs.length)processFilesIntoProject(fs);e.target.value='';});
+$('projcap').addEventListener('change',e=>{const f=e.target.files&&e.target.files[0];if(f)processFilesIntoProject([f]);e.target.value='';});
+$('cloudbtn').addEventListener('click',showHome);
+$('dzcloud').addEventListener('click',e=>{e.preventDefault();e.stopPropagation();showHome();});
 $('cloudclose').addEventListener('click',closeCloudModal);
 $('cloudmodal').addEventListener('click',e=>{if(e.target===$('cloudmodal'))closeCloudModal();});
 window.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('cloudmodal').classList.contains('on'))closeCloudModal();},true);
@@ -1036,11 +1228,11 @@ document.querySelectorAll('.capszb').forEach(b=>b.addEventListener('click',()=>s
 $('ub').addEventListener('click',un);
 $('cb').addEventListener('click',ca);
 // ── Save dropdown menu ──
-function openSaveMenu(){const m=$('savemenu'),r=$('savebtn').getBoundingClientRect();m.classList.add('on');const mw=m.offsetWidth;let left=r.right-mw;if(left<8)left=8;m.style.left=left+'px';m.style.top=(r.bottom+6)+'px';}
+function openSaveMenu(){const ci=$('smi-cloud');if(ci){const b=ci.querySelector('b'),ic=ci.querySelector('.smi-ic'),d=ci.querySelector('.smi-tx span:last-child');if(S.wallId){b.textContent='Save to '+(S.projectName||'project');ic.textContent='💾';if(d)d.textContent='Update this photo in the project';}else{b.textContent='Save to a project';ic.textContent='☁️';if(d)d.textContent='Cloud library — reopen on any device';}}const m=$('savemenu'),r=$('savebtn').getBoundingClientRect();m.classList.add('on');const mw=m.offsetWidth;let left=r.right-mw;if(left<8)left=8;m.style.left=left+'px';m.style.top=(r.bottom+6)+'px';}
 function closeSaveMenu(){$('savemenu').classList.remove('on');}
 function saveMenuOpen(){return $('savemenu').classList.contains('on');}
 $('savebtn').addEventListener('click',e=>{e.stopPropagation();saveMenuOpen()?closeSaveMenu():openSaveMenu();});
-document.querySelectorAll('.smi').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();const f=b.dataset.fmt;closeSaveMenu();if(f==='pdf')exPDF();else if(f==='png')ex();else if(f==='svg')exSVG();else if(f==='cloud')openSaveCloudModal();}));
+document.querySelectorAll('.smi').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();const f=b.dataset.fmt;closeSaveMenu();if(f==='pdf')exPDF();else if(f==='png')ex();else if(f==='svg')exSVG();else if(f==='cloud'){if(S.wallId)saveWallUpdate();else openSaveCloudModal();}}));
 document.addEventListener('click',()=>{if(saveMenuOpen())closeSaveMenu();});
 $('savemenu').addEventListener('click',e=>e.stopPropagation());
 $('tb').addEventListener('scroll',()=>{if(saveMenuOpen())closeSaveMenu();});
@@ -1053,7 +1245,7 @@ $('zin').addEventListener('click',()=>{const v=S.vb;zoomAt(1.4,v.x+v.w/2,v.y+v.h
 $('zout').addEventListener('click',()=>{const v=S.vb;zoomAt(1/1.4,v.x+v.w/2,v.y+v.h/2);render();});
 $('zfit').addEventListener('click',()=>{fitVB();render();});
 $('scrim').addEventListener('click',()=>{if(Date.now()-(S.drawerAt||0)<450)return;closeDrawer();});$('ptoggle').addEventListener('click',()=>{if($('pn').classList.contains('show')){closeDrawer();}else if(S.sel!=null){openDrawer();}else{$('st').textContent='Select or draw an item first, then tap Edit to adjust it';}});
-function applyLabel(){if(S.sel==null)return;const v=$('li').value;S.lines=S.lines.map(l=>l.id===S.sel?{...l,label:v}:l);$('ph').textContent=v?'↔ Drag the label on the image to reposition':'Type a measurement or note';render();}
+function applyLabel(){if(S.sel==null)return;const v=$('li').value;S.lines=S.lines.map(l=>l.id===S.sel?{...l,label:v}:l);S.dirty=true;$('ph').textContent=v?'↔ Drag the label on the image to reposition':'Type a measurement or note';render();}
 ['input','change','compositionupdate','compositionend','keyup'].forEach(ev=>$('li').addEventListener(ev,applyLabel));
 $('li').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();applyLabel();$('li').blur();if(isMobile())closeDrawer();}});
 ['input','change','compositionupdate','compositionend','keyup'].forEach(ev=>$('ti').addEventListener(ev,()=>{S.title=$('ti').value;}));
@@ -1140,7 +1332,10 @@ cv.addEventListener('pointercancel',e=>{endPtr(e);S.drawing=null;S.drag=null;S.h
 cv.addEventListener('wheel',e=>{if(!S.img)return;e.preventDefault();const f=e.deltaY<0?1.18:1/1.18;const fp=clientToImg(e.clientX,e.clientY);zoomAt(f,fp.x,fp.y);},{passive:false});
 
 window.addEventListener('resize',()=>{const pn=$('pn');if(!isMobile()){$('scrim').classList.remove('on');if(S.sel!=null)pn.classList.add('show');else pn.classList.remove('show');}else{if(!pn.classList.contains('show'))$('scrim').classList.remove('on');}});
-window.addEventListener('keydown',e=>{if($('camov').classList.contains('on')){if(e.key==='Escape')closeCam();return;}const tag=document.activeElement?.tagName;if(tag==='INPUT'||tag==='TEXTAREA'){if(e.key==='Escape')document.activeElement.blur();return;}if((e.key==='z')&&(e.metaKey||e.ctrlKey)){e.preventDefault();un();}else if(e.key==='Delete'||e.key==='Backspace')dl();else if(e.key==='Escape'){dsl();S.drawing=null;render();}else if(e.key==='l')st('line');else if(e.key==='t')st('text');else if(e.key==='s'||e.key==='v')st('select');});
+window.addEventListener('keydown',e=>{if($('camov').classList.contains('on')){if(e.key==='Escape')closeCam();return;}if(isHomeOpen())return;const tag=document.activeElement?.tagName;if(tag==='INPUT'||tag==='TEXTAREA'){if(e.key==='Escape')document.activeElement.blur();return;}if((e.key==='z')&&(e.metaKey||e.ctrlKey)){e.preventDefault();un();}else if(e.key==='Delete'||e.key==='Backspace')dl();else if(e.key==='Escape'){dsl();S.drawing=null;render();}else if(e.key==='l')st('line');else if(e.key==='t')st('text');else if(e.key==='s'||e.key==='v')st('select');});
+
+// Land on the Projects home screen every time the app opens.
+showHome();
 </script>
 </body>
 </html>

@@ -1,6 +1,6 @@
 # Site Survey Annotation Tool — Project Status
 
-**Last updated:** July 9, 2026
+**Last updated:** July 9, 2026 (cloud library + project-first workflow live)
 **Live site:** https://site-survey-measure.netlify.app
 **Deliverable:** a single standalone HTML file (no dependencies, no build step). In this repo it is **`index.html`** so it loads at the bare domain.
 **Purpose:** Browser-based tool for marking up site survey photos for graphics installs — draw measurement lines, label dimensions, add text notes, and export annotated files (PDF / PNG / SVG) that clients can approve directly, without a designer as intermediary.
@@ -90,6 +90,20 @@
 - **Round-trip**: save = insert wall row → upload photo → patch row with `photo_path`+`thumb`. Open = fetch row → download photo from Storage as a **data URL** (kept self-contained so PNG/PDF/SVG export stays offline-safe and canvas never taints) → `restoreProject()`. Reuses the exact same restore path as reopening a local file, so the editable round-trip is identical.
 - **Access**: launches open-access (no login) per roadmap — RLS policies allow the anon role full read/write. Auth gate (roadmap #2) tightens this later.
 - **Setup SQL** to run once in the Supabase SQL editor lives with the session notes; it is idempotent (safe to re-run) and creates both tables, the bucket, and the open-access policies.
+
+## Project-first workflow (added July 9, 2026)
+
+The app now **opens on a Projects home screen** (`#home`, full-screen overlay). Flow:
+- **Projects list** — your job folders + **➕ New Project** and **✏️ Quick edit (no project)** (the local-first escape hatch).
+- **Open a project** — thumbnail grid of that job's photos (walls) + **➕ Add photos** (multi-select) and **📷 Take photo**; both drop straight into the open project. `S.projectId`/`S.projectName` track the open project.
+- **Tap a photo** → `editWall()` downloads it and opens the existing editor, binding `S.wallId`. A teal **📁 project** badge (`#ctx`) shows in the toolbar.
+- **Saving is explicit.** The drawer button is renamed **✓ Apply** (applies one label; not "done editing"). The **Save** menu is context-aware: editing a project photo shows **💾 Save to <project>** (`saveWallUpdate()` — PATCHes `data`+`thumb` in place); a local one-off shows **☁ Save to a project** (creates a new wall, then binds to it). Local PDF/PNG/SVG export is always present.
+- **🗂 Projects** toolbar button returns home (`goHome()` warns if `S.dirty` and unsaved). Photos added without annotating store `lines:[]` and a plain downscaled thumb.
+- Helpers: `createWall()` (insert→upload→patch), `processFilesIntoProject()`, `decodeFile()` (HEIC-aware), `makeThumbFromImg()`.
+
+## iOS/iPad viewport fixes (July 9, 2026)
+
+The keyboard "toolbar disappears / app frozen" bug: iOS scrolls/shifts the fixed layout to reveal a focused field and doesn't restore it. Fix: lock `html,body{overflow:hidden}`, `pinToTop()` on focusout/scroll, and clamp `html/body` height to `visualViewport.height` **only while a field is focused** (clamping always left photos shrunk by the picker's transient small viewport). Input font is 16px to stop iOS zoom.
 
 ## Working agreement for Claude Code sessions
 
