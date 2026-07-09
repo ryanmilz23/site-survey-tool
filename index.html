@@ -949,11 +949,10 @@ async function doCloudSave(){
     }
     const pd=projectData();
     if(title)pd.title=title;
-    const photoBlob=dataURLToBlob(pd.img);
-    const ext=((photoBlob.type.split('/')[1]||'jpg').replace('jpeg','jpg').replace('svg+xml','png').replace(/[^a-z0-9]/gi,''))||'jpg';
+    const photoBlob=await imgToJpegBlob(await loadImgEl(pd.img),0.9);   // store as JPEG for universal decode
     const data={...pd};delete data.img;              // photo lives in Storage, not the row
     let thumb=null;try{thumb=makeThumb(await compositeCanvasP(),360);}catch(e){thumb=null;}
-    const wall=await createWall(pid,title,data,photoBlob,ext,thumb);
+    const wall=await createWall(pid,title,data,photoBlob,'jpg',thumb);
     // Bind the editor to this new project photo so further Saves update it.
     S.projectId=pid;S.wallId=wall.id;
     const proj=(sel.selectedOptions&&sel.selectedOptions[0]&&sel.value!=='__new')?sel.selectedOptions[0].textContent:($('cloud-newname')?($('cloud-newname').value||'').trim():'');
@@ -1010,6 +1009,18 @@ function extFromMime(m){return ((m||'').split('/')[1]||'jpg').replace('jpeg','jp
 function makeThumbFromImg(im,maxSide){const w0=im.naturalWidth||im.width,h0=im.naturalHeight||im.height,s=Math.min(1,maxSide/Math.max(w0,h0));const c=document.createElement('canvas');c.width=Math.max(1,Math.round(w0*s));c.height=Math.max(1,Math.round(h0*s));c.getContext('2d').drawImage(im,0,0,c.width,c.height);return c.toDataURL('image/jpeg',0.72);}
 function readFileDataURL(file){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=()=>rej(new Error('could not read file'));r.readAsDataURL(file);});}
 function loadImgEl(src){return new Promise((res,rej)=>{const im=new Image();im.onload=()=>res(im);im.onerror=()=>rej(new Error('could not decode image'));im.src=src;});}
+// Re-encode a decoded image to a JPEG blob so stored photos are decodable on
+// EVERY device (avoids storing raw HEIC that older iPads can't open).
+function imgToJpegBlob(im,quality){return new Promise(res=>{const c=document.createElement('canvas');c.width=im.naturalWidth||im.width;c.height=im.naturalHeight||im.height;c.getContext('2d').drawImage(im,0,0);const q=quality||0.9;if(c.toBlob)c.toBlob(bl=>res(bl||dataURLToBlob(c.toDataURL('image/jpeg',q))),'image/jpeg',q);else res(dataURLToBlob(c.toDataURL('image/jpeg',q)));});}
+// Ensure a downloaded photo can actually be shown; if it's HEIC (stored by an
+// older build), convert it to JPEG on the fly so it opens anywhere.
+async function ensureDecodable(dataURL){
+  try{await loadImgEl(dataURL);return dataURL;}
+  catch(e){
+    try{await loadHeicLib();const out=await heic2any({blob:dataURLToBlob(dataURL),toType:'image/jpeg',quality:0.9});const jpg=Array.isArray(out)?out[0]:out;return await blobToDataURL(jpg);}
+    catch(e2){throw new Error('this photo could not be opened on this device');}
+  }
+}
 async function decodeFile(file){
   const name=(file.name||'').toLowerCase(),isHeic=/\.hei[cf]$/i.test(name)||/hei[cf]/i.test(file.type||'');
   let src=await readFileDataURL(file);
@@ -1030,11 +1041,11 @@ async function createWall(projectId,title,data,photoBlob,ext,thumb){
   return wall;
 }
 async function addPhotoFileToProject(projectId,file){
-  const {src,im}=await decodeFile(file);
+  const {im}=await decodeFile(file);
   const title=(file.name||'').replace(/\.[^.]+$/,'').slice(0,80)||'';
   const data={v:1,app:'site-survey',title,w:im.naturalWidth,h:im.naturalHeight,thick:S.thick,lines:[]};
-  const blob=dataURLToBlob(src),ext=extFromMime(blob.type),thumb=makeThumbFromImg(im,360);
-  return createWall(projectId,title,data,blob,ext,thumb);
+  const blob=await imgToJpegBlob(im,0.9),thumb=makeThumbFromImg(im,360);   // store as JPEG for universal decode
+  return createWall(projectId,title,data,blob,'jpg',thumb);
 }
 async function processFilesIntoProject(files){
   const pid=S.projectId;if(!pid)return;
@@ -1052,8 +1063,8 @@ async function uploadDataURLToProject(src,name){
   try{
     const im=await loadImgEl(src);
     const data={v:1,app:'site-survey',title:name||'',w:im.naturalWidth,h:im.naturalHeight,thick:S.thick,lines:[]};
-    const blob=dataURLToBlob(src),ext=extFromMime(blob.type),thumb=makeThumbFromImg(im,360);
-    await createWall(pid,name||'',data,blob,ext,thumb);
+    const blob=await imgToJpegBlob(im,0.9),thumb=makeThumbFromImg(im,360);
+    await createWall(pid,name||'',data,blob,'jpg',thumb);
     homeMsg('');openProjectView(S.projectId,S.projectName);
   }catch(e){homeMsg('Photo failed: '+e.message,true);}
 }
@@ -1120,7 +1131,7 @@ async function editWall(wallId){
     const wall=await sbGetWall(wallId);
     if(!wall)throw new Error('photo not found');
     const data=wall.data||{};
-    if(wall.photo_path)data.img=await sbDownloadDataURL(wall.photo_path);
+    if(wall.photo_path)data.img=await ensureDecodable(await sbDownloadDataURL(wall.photo_path));
     if(!data.img)throw new Error('no photo saved with it');
     S.projectId=wall.project_id||S.projectId;S.wallId=wall.id;
     hideHome();
