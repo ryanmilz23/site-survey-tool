@@ -1007,9 +1007,19 @@ window.addEventListener('scroll',()=>{if(window.pageYOffset||window.pageXOffset)
 // never zooms, so the browser has no reason to shift things either.
 if(window.visualViewport){
   const vv=window.visualViewport;
-  const fit=()=>{const h=Math.max(200,Math.round(vv.height))+'px';document.documentElement.style.height=h;document.body.style.height=h;pinToTop();};
+  const fieldFocused=()=>{const a=document.activeElement;return !!a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName);};
+  // Only clamp the page to the visible area while a field is focused (keyboard
+  // up) — that's the only time the toolbar would be pushed off. Otherwise use
+  // the full screen, so loading a photo isn't left shrunk by the small
+  // viewport the iOS photo picker briefly reports.
+  const fit=()=>{
+    if(fieldFocused()){const h=Math.max(200,Math.round(vv.height))+'px';document.documentElement.style.height=h;document.body.style.height=h;}
+    else{document.documentElement.style.height='';document.body.style.height='';}
+    pinToTop();
+  };
   vv.addEventListener('resize',fit);
   vv.addEventListener('scroll',pinToTop);
+  document.addEventListener('focusout',()=>setTimeout(fit,80),true);
   window.addEventListener('orientationchange',()=>setTimeout(fit,300));
   fit();
 }
