@@ -408,6 +408,12 @@ S.view='projects'; // 'projects' | 'project' | 'photo' | 'local' — drives whic
 const SUPABASE_URL='https://pvdpgyetgnguguauuchr.supabase.co';
 const SUPABASE_KEY='sb_publishable_hHnO-cQiNcQp0QrnoY85Fg_E1CB8kFi';
 const SB_BUCKET='survey-photos';
+// Cap the working/stored photo resolution. Full-res phone photos (12–48 MP)
+// render as a blank/black canvas on memory-constrained iPads (base iPad 9/10)
+// while working fine on an iPad Pro. 2560px on the long side is ample for
+// drawing measurement lines and keeps memory + file size reasonable everywhere.
+const MAX_IMG_PX=2560;
+function downscaleImg(im){const w=im.naturalWidth||im.width,h=im.naturalHeight||im.height,mx=Math.max(w,h);if(!mx||mx<=MAX_IMG_PX)return null;const s=MAX_IMG_PX/mx,nw=Math.max(1,Math.round(w*s)),nh=Math.max(1,Math.round(h*s));const c=document.createElement('canvas');c.width=nw;c.height=nh;c.getContext('2d').drawImage(im,0,0,nw,nh);return{src:c.toDataURL('image/jpeg',0.9),w:nw,h:nh};}
 let uid=1;
 const $=id=>document.getElementById(id);
 function se(t,a={}){const e=document.createElementNS(NS,t);for(const[k,v]of Object.entries(a))e.setAttribute(k,v);return e;}
@@ -592,7 +598,7 @@ function dl(){if(S.sel==null)return;commit(S.lines.filter(l=>l.id!==S.sel));S.se
 function ca(){if(!S.lines.length)return;if(!confirm('Clear all '+S.lines.length+' annotation'+(S.lines.length>1?'s':'')+'? This can be undone with Ctrl+Z.'))return;commit([]);S.sel=null;up();ss();}
 function un(){if(!S.hist.length)return;S.lines=S.hist[S.hist.length-1];S.hist=S.hist.slice(0,-1);S.sel=null;render();up();uu();uc();ss();}
 
-function loadImageSrc(src,heicFile){const im=new Image();im.onload=()=>{S.projectId=null;S.wallId=null;S.projectName='';S.dirty=false;S.img={src,w:im.naturalWidth,h:im.naturalHeight};S.lines=[];S.hist=[];S.sel=null;S.drag=null;S.vb={x:0,y:0,w:S.img.w,h:S.img.h};const s=$('cv');s.setAttribute('viewBox',`0 0 ${S.img.w} ${S.img.h}`);const b=$('bg');b.setAttribute('href',src);b.setAttribute('width',S.img.w);b.setAttribute('height',S.img.h);$('dz').style.display='none';s.style.display='block';$('zoomctl').classList.add('on');render();up();uu();uc();$('savebtn').style.display='flex';updateEditorCtx();st('line');};im.onerror=()=>{if(heicFile){convertHeic(heicFile);}else{alert('Sorry, that image could not be loaded. Please try a different photo or format (JPG/PNG).');}};im.src=src;}
+function loadImageSrc(src,heicFile){const im=new Image();im.onload=()=>{S.projectId=null;S.wallId=null;S.projectName='';S.dirty=false;const ds=downscaleImg(im);const dsrc=ds?ds.src:src;S.img={src:dsrc,w:ds?ds.w:im.naturalWidth,h:ds?ds.h:im.naturalHeight};S.lines=[];S.hist=[];S.sel=null;S.drag=null;S.vb={x:0,y:0,w:S.img.w,h:S.img.h};const s=$('cv');s.setAttribute('viewBox',`0 0 ${S.img.w} ${S.img.h}`);const b=$('bg');b.setAttribute('href',dsrc);b.setAttribute('width',S.img.w);b.setAttribute('height',S.img.h);$('dz').style.display='none';s.style.display='block';$('zoomctl').classList.add('on');render();up();uu();uc();$('savebtn').style.display='flex';updateEditorCtx();st('line');};im.onerror=()=>{if(heicFile){convertHeic(heicFile);}else{alert('Sorry, that image could not be loaded. Please try a different photo or format (JPG/PNG).');}};im.src=src;}
 
 // ── HEIC fallback: only fetched & run if the browser can't decode the photo natively ──
 let heicLibPromise=null;
@@ -646,7 +652,10 @@ function restoreProject(d,keepCtx){
   im.onload=()=>{
     if(!keepCtx){S.projectId=null;S.wallId=null;S.projectName='';}
     S.dirty=false;
-    S.img={src,w:d.w||im.naturalWidth,h:d.h||im.naturalHeight};
+    // Keep annotation coordinate space at the original dimensions, but display a
+    // downscaled raster so large photos still render on low-memory iPads.
+    const ds=downscaleImg(im),dsrc=ds?ds.src:src;
+    S.img={src:dsrc,w:d.w||im.naturalWidth,h:d.h||im.naturalHeight};
     S.lines=(d.lines||[]).map(l=>({...l}));
     S.title=d.title||'';$('ti').value=S.title;
     S.hist=[];S.sel=null;S.drag=null;
@@ -654,7 +663,7 @@ function restoreProject(d,keepCtx){
     S.vb={x:0,y:0,w:S.img.w,h:S.img.h};
     uid=Math.max(0,...S.lines.map(l=>l.id||0))+1;
     const s=$('cv');s.setAttribute('viewBox',`0 0 ${S.img.w} ${S.img.h}`);
-    const b=$('bg');b.setAttribute('href',src);b.setAttribute('width',S.img.w);b.setAttribute('height',S.img.h);
+    const b=$('bg');b.setAttribute('href',dsrc);b.setAttribute('width',S.img.w);b.setAttribute('height',S.img.h);
     $('dz').style.display='none';s.style.display='block';$('zoomctl').classList.add('on');
     $('savebtn').style.display='flex';
     sth(S.thick);st('select');render();up();uu();uc();updateEditorCtx();
@@ -1018,7 +1027,7 @@ function readFileDataURL(file){return new Promise((res,rej)=>{const r=new FileRe
 function loadImgEl(src){return new Promise((res,rej)=>{const im=new Image();im.onload=()=>res(im);im.onerror=()=>rej(new Error('could not decode image'));im.src=src;});}
 // Re-encode a decoded image to a JPEG blob so stored photos are decodable on
 // EVERY device (avoids storing raw HEIC that older iPads can't open).
-function imgToJpegBlob(im,quality){return new Promise(res=>{const c=document.createElement('canvas');c.width=im.naturalWidth||im.width;c.height=im.naturalHeight||im.height;c.getContext('2d').drawImage(im,0,0);const q=quality||0.9;if(c.toBlob)c.toBlob(bl=>res(bl||dataURLToBlob(c.toDataURL('image/jpeg',q))),'image/jpeg',q);else res(dataURLToBlob(c.toDataURL('image/jpeg',q)));});}
+function imgToJpegBlob(im,quality){return new Promise(res=>{const w0=im.naturalWidth||im.width,h0=im.naturalHeight||im.height,s=Math.min(1,MAX_IMG_PX/Math.max(w0,h0));const c=document.createElement('canvas');c.width=Math.max(1,Math.round(w0*s));c.height=Math.max(1,Math.round(h0*s));c.getContext('2d').drawImage(im,0,0,c.width,c.height);const q=quality||0.9;if(c.toBlob)c.toBlob(bl=>res(bl||dataURLToBlob(c.toDataURL('image/jpeg',q))),'image/jpeg',q);else res(dataURLToBlob(c.toDataURL('image/jpeg',q)));});}
 // Ensure a downloaded photo can actually be shown; if it's HEIC (stored by an
 // older build), convert it to JPEG on the fly so it opens anywhere.
 async function ensureDecodable(dataURL){
@@ -1047,11 +1056,13 @@ async function createWall(projectId,title,data,photoBlob,ext,thumb){
   catch(e){await sbRest('walls?id=eq.'+wall.id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({photo_path:path})});}
   return wall;
 }
+function cappedDims(im){const cap=Math.min(1,MAX_IMG_PX/Math.max(im.naturalWidth||1,im.naturalHeight||1));return{w:Math.max(1,Math.round((im.naturalWidth||1)*cap)),h:Math.max(1,Math.round((im.naturalHeight||1)*cap))};}
 async function addPhotoFileToProject(projectId,file){
   const {im}=await decodeFile(file);
   const title=(file.name||'').replace(/\.[^.]+$/,'').slice(0,80)||'';
-  const data={v:1,app:'site-survey',title,w:im.naturalWidth,h:im.naturalHeight,thick:S.thick,lines:[]};
-  const blob=await imgToJpegBlob(im,0.9),thumb=makeThumbFromImg(im,360);   // store as JPEG for universal decode
+  const cd=cappedDims(im);
+  const data={v:1,app:'site-survey',title,w:cd.w,h:cd.h,thick:S.thick,lines:[]};
+  const blob=await imgToJpegBlob(im,0.9),thumb=makeThumbFromImg(im,360);   // store as JPEG (capped) for universal decode
   return createWall(projectId,title,data,blob,'jpg',thumb);
 }
 async function processFilesIntoProject(files){
@@ -1069,7 +1080,8 @@ async function uploadDataURLToProject(src,name){
   homeMsg('Uploading photo…');
   try{
     const im=await loadImgEl(src);
-    const data={v:1,app:'site-survey',title:name||'',w:im.naturalWidth,h:im.naturalHeight,thick:S.thick,lines:[]};
+    const cd=cappedDims(im);
+    const data={v:1,app:'site-survey',title:name||'',w:cd.w,h:cd.h,thick:S.thick,lines:[]};
     const blob=await imgToJpegBlob(im,0.9),thumb=makeThumbFromImg(im,360);
     await createWall(pid,name||'',data,blob,'jpg',thumb);
     homeMsg('');openProjectView(S.projectId,S.projectName);
