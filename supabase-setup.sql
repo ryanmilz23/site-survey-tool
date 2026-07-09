@@ -26,6 +26,16 @@ create table if not exists public.walls (
 );
 create index if not exists walls_project_id_idx on public.walls(project_id);
 
+-- 2b. Self-heal: if an earlier version of the walls table already existed,
+--     "create table if not exists" above skipped it, so make sure every
+--     column is present. These are no-ops when the column already exists.
+alter table public.walls add column if not exists title      text;
+alter table public.walls add column if not exists data       jsonb;
+alter table public.walls add column if not exists photo_path text;
+alter table public.walls add column if not exists thumb      text;
+alter table public.walls add column if not exists created_at timestamptz not null default now();
+alter table public.walls add column if not exists updated_at timestamptz not null default now();
+
 -- 3. Storage bucket for the full-resolution photo files ---------------------
 insert into storage.buckets (id, name, public)
 values ('survey-photos', 'survey-photos', true)

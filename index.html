@@ -873,7 +873,9 @@ function escHtml(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp
 // ── Data access ──
 function sbListProjects(){return sbRest('projects?select=id,name,created_at&order=name.asc');}
 async function sbCreateProject(name){const r=await sbRest('projects',{method:'POST',headers:{'Content-Type':'application/json',Prefer:'return=representation'},body:JSON.stringify({name})});return r&&r[0];}
-function sbListWalls(pid){return sbRest('walls?select=id,title,thumb,created_at&project_id=eq.'+pid+'&order=created_at.asc');}
+// select=* (rather than naming columns) so an older table missing newer
+// columns like thumb/photo_path still lists instead of erroring; sorted here.
+async function sbListWalls(pid){const rows=await sbRest('walls?select=*&project_id=eq.'+pid)||[];rows.sort((a,b)=>String(a.created_at||'').localeCompare(String(b.created_at||'')));return rows;}
 async function sbGetWall(id){const r=await sbRest('walls?select=*&id=eq.'+id);return r&&r[0];}
 
 // ── Modal shell ──
@@ -1114,7 +1116,8 @@ async function saveWallUpdate(){
     const pd=projectData();const data={...pd};delete data.img;
     let thumb=null;try{thumb=makeThumb(await compositeCanvasP(),360);}catch(e){}
     const body={data};if(thumb)body.thumb=thumb;
-    await sbRest('walls?id=eq.'+S.wallId,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    try{await sbRest('walls?id=eq.'+S.wallId,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});}
+    catch(e){await sbRest('walls?id=eq.'+S.wallId,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({data})});}
     S.dirty=false;
     $('st').textContent='Saved to '+(S.projectName||'project')+' ☁';
   }catch(e){alert('Save to project failed: '+e.message);$('st').textContent='Save failed — please try again';}
