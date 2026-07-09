@@ -166,6 +166,15 @@ select.cloud-in{cursor:pointer}
   .home-btn{flex:1;justify-content:center;padding:14px 10px}
   #home-title{font-size:17px}
 }
+/* Save / discard / cancel dialog when backing out of an unsaved photo */
+#leavedlg{display:none;position:fixed;inset:0;z-index:130;background:rgba(0,0,0,.62);align-items:center;justify-content:center;padding:18px}
+#leavedlg.on{display:flex}
+#leavepanel{width:min(420px,100%);background:#1c1f27;border:1px solid #2a2d38;border-radius:14px;box-shadow:0 18px 60px rgba(0,0,0,.6);padding:20px}
+#leavemsg{font-size:15px;font-weight:600;color:#e8eaf0;line-height:1.5;margin-bottom:18px}
+#leavebtns{display:flex;flex-direction:column;gap:9px}
+#leavebtns .cloud-primary{margin-top:0}
+#leave-discard{color:#fca5a5;border-color:rgba(239,68,68,.4);justify-content:center}
+#leave-cancel{justify-content:center}
 
 @media (max-width:760px){
   #tb{position:relative;z-index:70;gap:4px;min-height:50px}
@@ -323,6 +332,17 @@ select.cloud-in{cursor:pointer}
   <div id="home-actions"></div>
   <div id="home-body"></div>
   <div id="home-status"></div>
+</div>
+
+<div id="leavedlg">
+  <div id="leavepanel">
+    <div id="leavemsg">You have unsaved changes.</div>
+    <div id="leavebtns">
+      <button id="leave-save" class="cloud-primary">💾 Save &amp; go back</button>
+      <button id="leave-discard" class="home-btn">Discard changes</button>
+      <button id="leave-cancel" class="home-btn">Cancel</button>
+    </div>
+  </div>
 </div>
 
 <div id="cloudmodal">
@@ -1099,11 +1119,32 @@ function startLocalEdit(){
   $('savebtn').style.display='none';$('ti').value='';S.title='';
   render();uu();uc();updateEditorCtx();ss();
 }
-function goHome(){
-  if(S.img&&S.dirty&&!confirm('Go back to Projects? Any changes you haven\'t saved will be lost.'))return;
-  showHome();
+// Back out exactly one level: a project photo → that project's grid;
+// a local photo → the Projects home. Prompt to save first if there are
+// unsaved changes.
+function goBackLevel(){
+  const nav=(S.wallId&&S.projectId)?(()=>openProjectView(S.projectId,S.projectName)):(()=>showHome());
+  requestLeave(nav);
 }
+function requestLeave(nav){
+  if(!(S.img&&S.dirty)){nav();return;}
+  if(S.wallId){openLeaveDlg(nav);}
+  else{if(confirm('Leave this photo? Any changes you haven\'t exported will be lost.'))nav();}
+}
+function openLeaveDlg(nav){
+  $('leavemsg').textContent='Save your changes to “'+(S.projectName||'this project')+'” before going back?';
+  $('leavedlg').classList.add('on');
+  $('leave-save').onclick=async()=>{$('leavedlg').classList.remove('on');await saveWallUpdate();nav();};
+  $('leave-discard').onclick=()=>{$('leavedlg').classList.remove('on');S.dirty=false;nav();};
+  $('leave-cancel').onclick=()=>{$('leavedlg').classList.remove('on');};
+}
+function goHome(){requestLeave(()=>showHome());}
 function updateEditorCtx(){
+  const hb=$('homebtn');
+  if(hb){
+    if(S.wallId&&S.projectId){hb.innerHTML='‹<span class="lbl"> Back</span>';hb.title='Back to this project’s photos';}
+    else{hb.innerHTML='🗂<span class="lbl"> Projects</span>';hb.title='Back to your projects';}
+  }
   const el=$('ctx');if(!el)return;
   if(S.projectId&&S.wallId){el.style.display='flex';el.textContent='📁 '+(S.projectName||'Project');}
   else{el.style.display='none';el.textContent='';}
@@ -1173,7 +1214,7 @@ $('loadbtn').addEventListener('click',pickFile);
 $('dzload').addEventListener('click',e=>{e.preventDefault();e.stopPropagation();pickFile();});
 $('cam').addEventListener('click',pickCam);
 $('dzcam').addEventListener('click',e=>{e.preventDefault();e.stopPropagation();pickCam();});
-$('homebtn').addEventListener('click',goHome);
+$('homebtn').addEventListener('click',goBackLevel);
 $('home-back').addEventListener('click',renderProjectsHome);
 $('projfiles').addEventListener('change',e=>{const fs=e.target.files;if(fs&&fs.length)processFilesIntoProject(fs);e.target.value='';});
 $('projcap').addEventListener('change',e=>{const f=e.target.files&&e.target.files[0];if(f)processFilesIntoProject([f]);e.target.value='';});
