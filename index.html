@@ -224,7 +224,6 @@ select.cloud-in{cursor:pointer}
   <div class="sep"></div>
   <button class="up" id="loadbtn" title="Load a photo from your library or files">🖼<span class="lbl"> Load photo</span></button>
   <button class="b" id="cam" title="Take a photo with the camera" style="border-color:#3a3f4d">📷<span class="lbl"> Camera</span></button>
-  <button class="b" id="cloudbtn" title="Open a saved survey from your cloud project library" style="border-color:#3a3f4d">☁<span class="lbl"> Library</span></button>
   <div class="sep"></div>
   <button class="b s-on tool" id="bs" data-t="select" title="Select & move labels (S)">↖<span class="lbl toollbl"> Select</span></button>
   <button class="b tool" id="bl" data-t="line" title="Draw measurement line (L)">╱<span class="lbl toollbl"> Line</span></button>
@@ -395,6 +394,7 @@ const NS='http://www.w3.org/2000/svg';
 let S={img:null,title:'',lines:[],hist:[],tool:'select',drawing:null,pos:null,sel:null,color:'#FFD60A',thick:3,drag:null,cap:'triangle',capSize:'md',bubble:'rgba(0,0,0,.88)'};
 // Project-library context: which project/photo (wall) the editor is bound to.
 S.projectId=null;S.projectName='';S.wallId=null;S.camTarget=null;S.dirty=false;
+S.view='projects'; // 'projects' | 'project' | 'photo' | 'local' — drives which level Back goes to
 
 // ╔══════════════════════════════════════════════════════════════╗
 // ║  SUPABASE CLOUD LIBRARY — paste your two values below.         ║
@@ -1083,6 +1083,7 @@ function isHomeOpen(){return $('home').classList.contains('on');}
 function hideHome(){$('home').classList.remove('on');}
 function showHome(){$('home').classList.add('on');pinToTop();renderProjectsHome();}
 async function renderProjectsHome(){
+  S.view='projects';S.projectId=null;S.wallId=null;
   $('home-title').textContent='Projects';
   $('home-back').style.display='none';
   $('home-actions').innerHTML='<button class="home-btn primary" id="hp-new">➕ New Project</button><button class="home-btn" id="hp-local">✏️ Quick edit (no project)</button>';
@@ -1129,7 +1130,7 @@ async function createProjectPrompt(){
   catch(e){homeMsg('Could not create project: '+e.message,true);}
 }
 async function openProjectView(pid,name){
-  S.projectId=pid;S.projectName=name;
+  S.projectId=pid;S.projectName=name;S.wallId=null;S.view='project';
   $('home').classList.add('on');
   $('home-title').textContent=name;
   $('home-back').style.display='flex';
@@ -1164,13 +1165,13 @@ async function editWall(wallId){
     const data=wall.data||{};
     if(wall.photo_path)data.img=await ensureDecodable(await sbDownloadDataURL(wall.photo_path));
     if(!data.img)throw new Error('no photo saved with it');
-    S.projectId=wall.project_id||S.projectId;S.wallId=wall.id;
+    S.projectId=wall.project_id||S.projectId;S.wallId=wall.id;S.view='photo';
     hideHome();
     restoreProject(data,true);
   }catch(e){homeMsg('Open failed: '+e.message,true);}
 }
 function startLocalEdit(){
-  S.projectId=null;S.wallId=null;S.projectName='';S.dirty=false;
+  S.projectId=null;S.wallId=null;S.projectName='';S.dirty=false;S.view='local';
   hideHome();
   S.img=null;S.lines=[];S.hist=[];S.sel=null;
   $('cv').style.display='none';$('dz').style.display='flex';$('zoomctl').classList.remove('on');
@@ -1276,7 +1277,6 @@ $('homebtn').addEventListener('click',goBackLevel);
 $('home-back').addEventListener('click',renderProjectsHome);
 $('projfiles').addEventListener('change',e=>{const fs=e.target.files;if(fs&&fs.length)processFilesIntoProject(fs);e.target.value='';});
 $('projcap').addEventListener('change',e=>{const f=e.target.files&&e.target.files[0];if(f)processFilesIntoProject([f]);e.target.value='';});
-$('cloudbtn').addEventListener('click',showHome);
 $('dzcloud').addEventListener('click',e=>{e.preventDefault();e.stopPropagation();showHome();});
 $('cloudclose').addEventListener('click',closeCloudModal);
 $('cloudmodal').addEventListener('click',e=>{if(e.target===$('cloudmodal'))closeCloudModal();});
@@ -1438,6 +1438,24 @@ window.addEventListener('keydown',e=>{if($('camov').classList.contains('on')){if
 
 // Land on the Projects home screen every time the app opens.
 showHome();
+
+// Make the browser / hardware Back button step up ONE level inside the app
+// (photo → project → Projects) instead of leaving the site. Only at the
+// Projects list does Back leave. We keep a throwaway "trap" history entry that
+// each Back press consumes; we re-arm it and run the same in-app back action.
+try{
+  history.pushState(null,'');
+  window.addEventListener('popstate',()=>{
+    // An open overlay just closes on Back.
+    if($('leavedlg').classList.contains('on')){history.pushState(null,'');$('leavedlg').classList.remove('on');return;}
+    if($('camov').classList.contains('on')){history.pushState(null,'');closeCam();return;}
+    if($('cloudmodal').classList.contains('on')){history.pushState(null,'');closeCloudModal();return;}
+    if(typeof saveMenuOpen==='function'&&saveMenuOpen()){history.pushState(null,'');closeSaveMenu();return;}
+    if(S.view==='projects'){history.back();return;}   // at the top → let it leave
+    history.pushState(null,'');                        // re-arm the trap
+    goBackLevel();
+  });
+}catch(e){}
 </script>
 </body>
 </html>
