@@ -1,0 +1,21 @@
+name: Keep Supabase awake
+
+# Supabase's free tier pauses a project after ~7 days with no activity.
+# This makes one tiny read request a day so it never auto-pauses.
+# The key below is the public "publishable" anon key (already shipped in
+# index.html), so no repo secret is needed.
+
+on:
+  schedule:
+    - cron: "17 8 * * *"   # once a day, ~08:17 UTC
+  workflow_dispatch:         # lets you run it manually from the Actions tab
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase
+        run: |
+          curl --fail -sS \
+            "https://pvdpgyetgnguguauuchr.supabase.co/rest/v1/projects?select=id&limit=1" \
+            -H "apikey: sb_publishable_hHnO-cQiNcQp0QrnoY85Fg_E1CB8kFi"
