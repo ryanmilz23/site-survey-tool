@@ -147,6 +147,13 @@ select.cloud-in{cursor:pointer}
 .cloud-card-t{padding:9px 10px;font-size:12.5px;font-weight:600;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cloud-card-del{position:absolute;top:6px;right:6px;width:32px;height:32px;border-radius:8px;background:rgba(0,0,0,.6);border:none;color:#fff;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1}
 .cloud-card-del:hover{background:#dc2626}
+.cc-check{position:absolute;top:7px;left:7px;z-index:2;width:22px;height:22px;margin:0;cursor:pointer;accent-color:#14b8a6;border-radius:4px;box-shadow:0 0 0 3px rgba(0,0,0,.35)}
+.proj-seltools{display:flex;align-items:center;gap:12px;margin:0 0 12px}
+.selall{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:#cbd5e1;cursor:pointer;user-select:none}
+.selall input{width:20px;height:20px;margin:0;cursor:pointer;accent-color:#14b8a6}
+.home-btn.dl{margin-left:auto;padding:10px 16px;background:#0f766e;border-color:#14b8a6;color:#ccfbf1}
+.home-btn.dl:hover:not(:disabled){background:#115e59}
+.home-btn.dl:disabled{opacity:.45;cursor:default}
 @media (max-width:760px){
   #cloudpanel{max-height:92vh}
   #cloudbody{padding:15px}
@@ -776,45 +783,56 @@ function drawCapCanvas(ctx,fx,fy,tx,ty,sw,color,style,size){
   }
   ctx.restore();
 }
+// Paint all annotations for an image of width W (thick = line-weight setting)
+// onto a 2D context. Shared by the live editor export and project downloads.
+function paintAnnotations(ctx,lines,W,thick){
+  const sw=(thick||3)*(W/800),FS=Math.max(13,W/50);
+  (lines||[]).forEach(l=>{
+    ctx.save();ctx.lineCap='round';
+    const isText=l.type==='text';
+    if(!isText){
+      const style=l.cap||'triangle',csz=l.capSize||'md';
+      const e1=capBase(l.x2,l.y2,l.x1,l.y1,sw,style,csz),e2=capBase(l.x1,l.y1,l.x2,l.y2,sw,style,csz);
+      ctx.strokeStyle=l.color;ctx.lineWidth=sw;
+      ctx.beginPath();ctx.moveTo(e1.bx,e1.by);ctx.lineTo(e2.bx,e2.by);ctx.stroke();
+      drawCapCanvas(ctx,l.x2,l.y2,l.x1,l.y1,sw,l.color,style,csz);
+      drawCapCanvas(ctx,l.x1,l.y1,l.x2,l.y2,sw,l.color,style,csz);
+    }
+    if(l.label){
+      const fs=FS*(l.scale||1);
+      ctx.font=`bold ${fs}px "Courier New",monospace`;ctx.textBaseline='alphabetic';
+      const tw=ctx.measureText(l.label).width,pad=fs*.4,bx=l.lx-pad,by=l.ly-fs-pad,bw=tw+pad*2,bh=fs+pad*2,r=4;
+      if(!isText){
+        const bcx=l.lx+bw/2-pad,bcy=l.ly-fs/2,near=nearest(l.x1,l.y1,l.x2,l.y2,bcx,bcy);
+        if(Math.hypot(near.x-bcx,near.y-bcy)>bh*.55){
+          ctx.save();ctx.strokeStyle=l.color;ctx.lineWidth=Math.max(1,sw*.5);ctx.setLineDash([sw*2.5,sw*1.8]);ctx.globalAlpha=.85;
+          ctx.beginPath();ctx.moveTo(bcx,bcy);ctx.lineTo(near.x,near.y);ctx.stroke();ctx.restore();
+          ctx.fillStyle=l.color;ctx.beginPath();ctx.arc(near.x,near.y,Math.max(2,sw*.7),0,Math.PI*2);ctx.fill();
+        }
+      }
+      ctx.fillStyle=l.bubble||'rgba(0,0,0,.88)';ctx.beginPath();
+      ctx.moveTo(bx+r,by);ctx.lineTo(bx+bw-r,by);ctx.arcTo(bx+bw,by,bx+bw,by+r,r);ctx.lineTo(bx+bw,by+bh-r);ctx.arcTo(bx+bw,by+bh,bx+bw-r,by+bh,r);ctx.lineTo(bx+r,by+bh);ctx.arcTo(bx,by+bh,bx,by+bh-r,r);ctx.lineTo(bx,by+r);ctx.arcTo(bx,by,bx+r,by,r);ctx.closePath();ctx.fill();
+      ctx.fillStyle=l.color;ctx.fillText(l.label,l.lx,l.ly);
+    }
+    ctx.restore();
+  });
+}
 // Composite the photo + all annotations onto a full-resolution canvas, then hand it back.
 function compositeCanvas(done){
-  if(!S.img)return;const W=S.img.w,H=S.img.h,{S:sw,FS}=sc();
+  if(!S.img)return;const W=S.img.w,H=S.img.h;
   const can=document.createElement('canvas');can.width=W;can.height=H;const ctx=can.getContext('2d'),im=new Image();
-  im.onload=()=>{
-    ctx.drawImage(im,0,0,W,H);
-    S.lines.forEach(l=>{
-      ctx.save();ctx.lineCap='round';
-      const isText=l.type==='text';
-      if(!isText){
-        const style=l.cap||'triangle',csz=l.capSize||'md';
-        const e1=capBase(l.x2,l.y2,l.x1,l.y1,sw,style,csz),e2=capBase(l.x1,l.y1,l.x2,l.y2,sw,style,csz);
-        ctx.strokeStyle=l.color;ctx.lineWidth=sw;
-        ctx.beginPath();ctx.moveTo(e1.bx,e1.by);ctx.lineTo(e2.bx,e2.by);ctx.stroke();
-        drawCapCanvas(ctx,l.x2,l.y2,l.x1,l.y1,sw,l.color,style,csz);
-        drawCapCanvas(ctx,l.x1,l.y1,l.x2,l.y2,sw,l.color,style,csz);
-      }
-      if(l.label){
-        const fs=FS*(l.scale||1);
-        ctx.font=`bold ${fs}px "Courier New",monospace`;ctx.textBaseline='alphabetic';
-        const tw=ctx.measureText(l.label).width,pad=fs*.4,bx=l.lx-pad,by=l.ly-fs-pad,bw=tw+pad*2,bh=fs+pad*2,r=4;
-        if(!isText){
-          const bcx=l.lx+bw/2-pad,bcy=l.ly-fs/2,near=nearest(l.x1,l.y1,l.x2,l.y2,bcx,bcy);
-          if(Math.hypot(near.x-bcx,near.y-bcy)>bh*.55){
-            ctx.save();ctx.strokeStyle=l.color;ctx.lineWidth=Math.max(1,sw*.5);ctx.setLineDash([sw*2.5,sw*1.8]);ctx.globalAlpha=.85;
-            ctx.beginPath();ctx.moveTo(bcx,bcy);ctx.lineTo(near.x,near.y);ctx.stroke();ctx.restore();
-            ctx.fillStyle=l.color;ctx.beginPath();ctx.arc(near.x,near.y,Math.max(2,sw*.7),0,Math.PI*2);ctx.fill();
-          }
-        }
-        ctx.fillStyle=l.bubble||'rgba(0,0,0,.88)';ctx.beginPath();
-        ctx.moveTo(bx+r,by);ctx.lineTo(bx+bw-r,by);ctx.arcTo(bx+bw,by,bx+bw,by+r,r);ctx.lineTo(bx+bw,by+bh-r);ctx.arcTo(bx+bw,by+bh,bx+bw-r,by+bh,r);ctx.lineTo(bx+r,by+bh);ctx.arcTo(bx,by+bh,bx,by+bh-r,r);ctx.lineTo(bx,by+r);ctx.arcTo(bx,by,bx+r,by,r);ctx.closePath();ctx.fill();
-        ctx.fillStyle=l.color;ctx.fillText(l.label,l.lx,l.ly);
-      }
-      ctx.restore();
-    });
-    done(can);
-  };
+  im.onload=()=>{ctx.drawImage(im,0,0,W,H);paintAnnotations(ctx,S.lines,W,S.thick);done(can);};
   im.onerror=()=>alert('Could not render the image for export.');
   im.src=S.img.src;
+}
+// Render an arbitrary saved wall (photo + its stored annotations) to a canvas.
+function renderWallCanvas(src,data){
+  return new Promise((res,rej)=>{
+    const im=new Image();
+    im.onload=()=>{const W=data.w||im.naturalWidth,H=data.h||im.naturalHeight;const can=document.createElement('canvas');can.width=W;can.height=H;const ctx=can.getContext('2d');ctx.drawImage(im,0,0,W,H);paintAnnotations(ctx,data.lines||[],W,data.thick||3);res(can);};
+    im.onerror=()=>rej(new Error('could not render photo'));
+    im.src=src;
+  });
 }
 // PNG — flat snapshot, but carries the editable source so it reopens here.
 function ex(){
@@ -1154,9 +1172,72 @@ async function openProjectView(pid,name){
   try{walls=await sbListWalls(pid)||[];}
   catch(e){$('home-body').innerHTML='';homeMsg('Couldn\'t load this project ('+e.message+').',true);return;}
   if(!walls.length){$('home-body').innerHTML='<div class="cloud-empty">No photos in this project yet.<br><br>Use <b>➕ Add photos</b> or <b>📷 Take photo</b> to add some.</div>';return;}
-  $('home-body').innerHTML='<div class="cloud-grid">'+walls.map(w=>`<div class="cloud-card"><button class="cloud-card-open" data-id="${escHtml(w.id)}">${w.thumb?`<img src="${escHtml(w.thumb)}" alt="">`:'<div class="cloud-card-noimg">📐</div>'}<span class="cloud-card-t">${escHtml(w.title||'Untitled')}</span></button><button class="cloud-card-del" title="Delete this photo" data-id="${escHtml(w.id)}" data-path="${escHtml(w.photo_path||'')}" data-title="${escHtml(w.title||'this photo')}">🗑</button></div>`).join('')+'</div>';
+  $('home-body').innerHTML=
+    '<div class="proj-seltools"><label class="selall"><input type="checkbox" id="proj-selall"> Select all</label><button class="home-btn dl" id="proj-download" disabled>⬇ Download</button></div>'
+    +'<div class="cloud-grid">'+walls.map(w=>`<div class="cloud-card"><input type="checkbox" class="cc-check" title="Select" data-id="${escHtml(w.id)}"><button class="cloud-card-open" data-id="${escHtml(w.id)}">${w.thumb?`<img src="${escHtml(w.thumb)}" alt="">`:'<div class="cloud-card-noimg">📐</div>'}<span class="cloud-card-t">${escHtml(w.title||'Untitled')}</span></button><button class="cloud-card-del" title="Delete this photo" data-id="${escHtml(w.id)}" data-path="${escHtml(w.photo_path||'')}" data-title="${escHtml(w.title||'this photo')}">🗑</button></div>`).join('')+'</div>';
   $('home-body').querySelectorAll('.cloud-card-open').forEach(b=>b.addEventListener('click',()=>editWall(b.dataset.id)));
   $('home-body').querySelectorAll('.cloud-card-del').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();confirmDeleteWall(b.dataset.id,b.dataset.path,b.dataset.title);}));
+  $('home-body').querySelectorAll('.cc-check').forEach(cb=>cb.addEventListener('change',refreshDownloadBtn));
+  $('proj-selall').addEventListener('change',e=>{$('home-body').querySelectorAll('.cc-check').forEach(cb=>{cb.checked=e.target.checked;});refreshDownloadBtn();});
+  $('proj-download').addEventListener('click',()=>{const ids=[...$('home-body').querySelectorAll('.cc-check')].filter(c=>c.checked).map(c=>c.dataset.id);downloadWalls(ids);});
+  refreshDownloadBtn();
+}
+function refreshDownloadBtn(){
+  const checks=[...document.querySelectorAll('#home-body .cc-check')];
+  const n=checks.filter(c=>c.checked).length;
+  const btn=$('proj-download');if(btn){btn.disabled=n===0;btn.textContent=n?('⬇ Download ('+n+')'):'⬇ Download';}
+  const all=$('proj-selall');if(all){all.checked=n>0&&n===checks.length;all.indeterminate=n>0&&n<checks.length;}
+}
+// ── Download photos as editable PNGs (single file, or a store-only .zip for many) ──
+function safeName(t,ext){t=String(t||'').trim().replace(/[\\/:*?"<>|\x00-\x1f]+/g,' ').replace(/\s+/g,' ').replace(/^[. ]+|[. ]+$/g,'').slice(0,80).trim();return (t||'survey')+(ext?('.'+ext):'');}
+async function wallToPngBytes(wall){
+  const data=wall.data||{};
+  const src=await ensureDecodable(await sbDownloadDataURL(wall.photo_path));
+  const can=await renderWallCanvas(src,data);
+  const blob=await new Promise(res=>{if(can.toBlob)can.toBlob(b=>res(b),'image/png');else res(dataURLToBlob(can.toDataURL('image/png')));});
+  let bytes=new Uint8Array(await blob.arrayBuffer());
+  const pd={v:1,app:'site-survey',title:data.title||wall.title||'',w:data.w||can.width,h:data.h||can.height,thick:data.thick||3,img:src,lines:data.lines||[]};
+  try{bytes=embedInPNG(bytes,utf8ToB64(JSON.stringify(pd)));}catch(e){}
+  return bytes;
+}
+// Minimal store-only (no compression) ZIP writer. Images are already compressed.
+function makeZip(files){
+  const enc=new TextEncoder(),chunks=[],central=[];let offset=0;
+  const u16=n=>{const b=new Uint8Array(2);new DataView(b.buffer).setUint16(0,n&0xffff,true);return b;};
+  const u32=n=>{const b=new Uint8Array(4);new DataView(b.buffer).setUint32(0,n>>>0,true);return b;};
+  const push=a=>{chunks.push(a);offset+=a.length;};
+  files.forEach(f=>{
+    const name=enc.encode(f.name),data=f.bytes,crc=crc32(data),localOff=offset;
+    push(u32(0x04034b50));push(u16(20));push(u16(0));push(u16(0));push(u16(0));push(u16(0));
+    push(u32(crc));push(u32(data.length));push(u32(data.length));push(u16(name.length));push(u16(0));
+    push(name);push(data);
+    central.push([u32(0x02014b50),u16(20),u16(20),u16(0),u16(0),u16(0),u16(0),u32(crc),u32(data.length),u32(data.length),u16(name.length),u16(0),u16(0),u16(0),u16(0),u32(0),u32(localOff),name]);
+  });
+  const cdStart=offset;let cdSize=0;
+  central.forEach(rec=>rec.forEach(part=>{push(part);cdSize+=part.length;}));
+  push(u32(0x06054b50));push(u16(0));push(u16(0));push(u16(files.length));push(u16(files.length));push(u32(cdSize));push(u32(cdStart));push(u16(0));
+  const out=new Uint8Array(offset);let p=0;chunks.forEach(a=>{out.set(a,p);p+=a.length;});
+  return out;
+}
+async function downloadWalls(ids){
+  if(!ids||!ids.length)return;
+  const btn=$('proj-download');if(btn)btn.disabled=true;
+  const used={},files=[];
+  try{
+    for(let i=0;i<ids.length;i++){
+      homeMsg('Preparing '+(i+1)+' of '+ids.length+'…');
+      const wall=await sbGetWall(ids[i]);if(!wall||!wall.photo_path)continue;
+      const bytes=await wallToPngBytes(wall);
+      const base=safeName(wall.title||'survey','');let name=base+'.png',n=2;
+      while(used[name]){name=base+'-'+(n++)+'.png';}used[name]=1;
+      files.push({name,bytes});
+    }
+    homeMsg('');
+    if(!files.length){homeMsg('Nothing to download.',true);return;}
+    if(files.length===1){dlBlob(new Blob([files[0].bytes],{type:'image/png'}),files[0].name);}
+    else{dlBlob(new Blob([makeZip(files)],{type:'application/zip'}),safeName(S.projectName||'project','zip'));}
+  }catch(e){homeMsg('Download failed: '+e.message,true);}
+  finally{if($('proj-download'))refreshDownloadBtn();}
 }
 async function confirmDeleteWall(id,path,title){
   if(!confirm('Delete “'+(title||'this photo')+'” from the project? This can’t be undone.'))return;

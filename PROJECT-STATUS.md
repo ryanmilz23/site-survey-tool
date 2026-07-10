@@ -100,6 +100,7 @@ The app now **opens on a Projects home screen** (`#home`, full-screen overlay). 
 - **Saving is explicit.** The drawer button is renamed **✓ Apply** (applies one label; not "done editing"). The **Save** menu is context-aware: editing a project photo shows **💾 Save to <project>** (`saveWallUpdate()` — PATCHes `data`+`thumb` in place); a local one-off shows **☁ Save to a project** (creates a new wall, then binds to it). Local PDF/PNG/SVG export is always present.
 - **🗂 Projects** toolbar button returns home (`goHome()` warns if `S.dirty` and unsaved). Photos added without annotating store `lines:[]` and a plain downscaled thumb.
 - Helpers: `createWall()` (insert→upload→patch), `processFilesIntoProject()`, `decodeFile()` (HEIC-aware), `makeThumbFromImg()`.
+- **Download from a project:** each photo card has a checkbox + a "Select all" toggle and a Download button. One selected → a single editable PNG; two or more → one store-only `.zip` named after the project (built by `makeZip()` in plain JS, no library, reusing the existing `crc32`). Each file is a flat PNG with the `SSA1` project data embedded (`wallToPngBytes()` → `renderWallCanvas()` + `embedInPNG()`), so anything downloaded reopens here fully editable. Always one download prompt, never one-per-file (works on iOS Safari / Samsung).
 
 ## iOS/iPad viewport fixes (July 9, 2026)
 
